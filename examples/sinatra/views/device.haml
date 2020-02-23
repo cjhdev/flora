@@ -1,0 +1,34 @@
+%script{"src"=>"/asset/chartkick.js"}
+%script{"src"=>"/asset/Chart.bundle.js"}
+%script{"src"=>"/js/mine.js"}
+
+%div.myrow
+
+  %div.panelcol
+    
+    %div.panel
+    
+      %h2= format_eui(device.dev_eui)
+      
+      %p= device.description    
+      - message_count = stats[:activation] + stats[:data]
+      - if message_count == 0
+        %p= "never seen"
+      - else
+        %p= "#{message_count} messages received (#{stats[:activation]} activations, #{stats[:data]} data)"    
+        %p= "last seen at #{format_time(events.first.rx_time)} (#{format_last_seen(events.first)})"
+      
+    %div.panel
+      = margin_chart(events)
+      
+    %div.panel
+      = snr_chart(events)
+    
+    %div.panel
+      = rssi_chart(events)
+
+
+  %div.tablecol
+    
+    %div.panel-table
+      = haml(:_device_event_table, locals: {events: events})

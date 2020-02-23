@@ -1,0 +1,163 @@
+namespace :db do
+
+  require 'sqlite3'
+
+  desc "delete database"
+  task :drop do
+    `rm db/demo.sqlite3`
+  end
+  
+  desc "create empty database"
+  task :create do    
+    SQLite3::Database.new "db/demo.sqlite3"
+  end
+  
+  namespace :schema do
+  
+    desc "create tables"
+    task :load do
+    
+      require 'sequel'
+      
+      DB = Sequel.sqlite("db/demo.sqlite3") unless defined? DB
+    
+      DB.create_table :devices do
+        
+        primary_key :id
+        DateTime :created_at
+        DateTime :updated_at
+        
+        String :dev_eui, :null=>false, :unique=>true
+        Integer :dev_addr, :null=>false, :unique=>true
+        String :description, :text=>true
+        String :nwk_key, :null=>false
+        String :app_key
+        String :channel_plan, :null=>false
+        Integer :minor, :null=>false
+        String :exported, :text=>true  
+        
+      end
+
+      DB.create_table :lw_events do
+
+        foreign_key :device_id, :devices
+
+        primary_key :id
+        DateTime :created_at
+        DateTime :updated_at
+        
+        DateTime :rx_time, :null=>false
+        Integer :freq, :null=>false
+        Integer :sf, :null=>false
+        Integer :bw, :null=>false
+        
+        # class inheritance key
+        String :type, :null=>false
+        
+      end
+      
+      DB.create_table :lw_event_activations do
+      
+        foreign_key :id, :lw_events
+      
+        Integer :dev_nonce, :null=>false
+        Integer :join_nonce, :null=>false
+        String :join_eui, :null=>false
+        String :dev_eui, :null=>false
+        
+      end
+      
+      DB.create_table :lw_event_datas do
+
+        foreign_key :id, :lw_events
+
+        Integer  :fport
+        String   :data, :text=>true
+        Integer  :counter, :null=>false
+        Integer  :battery
+        Integer  :device_margin
+        TrueClass :confirmed, :null=>false
+        Integer   :dev_addr, :null=>false
+        TrueClass :encrypted, :null=>false
+        TrueClass :adr, :null=>false
+        TrueClass :adr_ack_req, :null=>false
+      
+      end
+      
+      DB.create_table :lw_gateway_metas do
+
+        primary_key :id
+
+        String    :gw_eui, :null=>false
+        
+        Float     :rssi, :null=>false
+        Float     :snr, :null=>false   
+        Float     :margin, :null=>false
+
+        foreign_key :lw_event_id, :lw_events    
+
+      end
+    
+    end
+  
+  end
+  
+  desc "load devices.yaml"
+  task :seed do
+  
+    require 'yaml'
+    require_relative 'environment'
+  
+    begin
+      devices = YAML.load(File.read(APP_ROOT.join("devices.yaml").to_path))
+    rescue => ex
+      STDERR.puts "could not load devices.yaml because '#{ex}'"
+      abort
+    end
+    
+    devices = devices.map do |k, device|
+      
+      [
+        [k].pack("H16"),
+        {
+          dev_addr: device['dev_addr'],
+          description: device['description'],
+          nwk_key: [device["nwk_key"]].pack("H32"),
+          app_key: (device["app_key"] ? [device["app_key"]].pack("H32") : nil),
+          minor: device["minor"]||0,
+          channel_plan: device["channel_plan"]||'default_eu'        
+        }
+      ]
+      
+    end
+    
+    DB.transaction do
+    
+      devices.each do |dev_eui, device|
+        
+        puts dev_eui.bytes.map{|b|"%02X"%b}.join
+        
+        Device.find_or_create(dev_eui: [dev_eui].pack("m0")) do |m|
+          
+          m.dev_addr = device[:dev_addr]
+          m.description = device[:description]
+          m.nwk_key = [device[:nwk_key]].pack("m0")    
+          m.app_key = [device[:app_key]].pack("m0") if device[:app_key]
+          m.channel_plan = device[:channel_plan]
+          m.minor = device[:minor]
+        
+        end
+        
+      end
+      
+    end
+
+  end
+  
+  desc ":drop, :setup"
+  task :reset => [:drop, :setup]
+  
+  desc ":create, :schema:load, :seed"
+  task :setup => [:create, "schema:load", :seed]
+  
+end

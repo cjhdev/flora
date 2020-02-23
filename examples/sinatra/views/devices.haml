@@ -1,0 +1,14 @@
+%script{"src"=>"/js/mine.js"}
+
+%div.myrow
+  %div.panelcol
+    %div.panel
+      %h2 All Devices
+      - devices.each do |device|
+        %ul
+          %li
+            %a{:href => format_device_link(device.dev_eui)}=format_eui(device.dev_eui)
+          
+  %div.tablecol
+    %div.panel-table
+      = haml(:_all_device_event_table, locals: {events: events})

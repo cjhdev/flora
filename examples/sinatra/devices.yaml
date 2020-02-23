@@ -1,0 +1,18 @@
+# add your devices to this file, copy the format used below
+
+# a 1.0 device
+'4CFE957100F09C3A':
+  dev_addr: 1
+  description: first demo device (this one only supports LoRaWAN 1.0)
+  nwk_key: 2084987E78C851EE495E1D783481D475
+  minor: 0
+  channel_plan: default_eu
+
+# a 1.1 device
+'0000000000000001':
+  dev_addr: 2
+  description: second demo device (this one supports LoRaWAN 1.1)
+  nwk_key: 2084987E78C851EE495E1D783481D445
+  app_key: 2084987E78C851EE495E1D783481D450
+  minor: 1
+  channel_plan: default_eu

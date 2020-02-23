@@ -1,0 +1,35 @@
+%table
+  %thead
+    %tr
+      %th time
+      %th devEUI      
+      %th type
+      %th freq
+      %th sf+bw        
+      %th NumGW
+      %th Margin
+      %th SNR
+      %th RSSI
+      %th counter
+      %th confirmed
+      
+  %tbody
+    - events.each do |event|
+      %tr
+        %td= event.rx_time.strftime("%Y-%m-%d %H:%M:%S")
+        %td
+          %a{:href => format_device_link(event.device.dev_eui)}=format_eui(event.device.dev_eui)          
+        %td= format_event_type(event.type)
+        %td= event.freq
+        %td= format_sf_and_bw(event.sf, event.bw)          
+        %td= event.lw_gateway_metas.size
+        %td= event.lw_gateway_metas.first.margin
+        %td= event.lw_gateway_metas.first.snr
+        %td= event.lw_gateway_metas.first.rssi                    
+        
+        - if  event.kind_of? LwEventData          
+          %td= format_counter(event.counter)
+          %td= event.confirmed
+        - else
+          %td= "-"
+          %td= "-"

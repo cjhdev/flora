@@ -1,0 +1,13 @@
+require 'rake/testtask'
+
+Rake::TestTask.new do |t|
+  t.name = :test
+  t.libs << "lib"
+  t.test_files = FileList["test/**/*_test.rb"]    
+end
+
+Rake::TestTask.new do |t|
+  t.name = :bench
+  t.libs << "lib"
+  t.test_files = FileList["test/**/*_bench.rb"]    
+end

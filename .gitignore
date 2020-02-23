@@ -1,0 +1,6 @@
+*.gem
+tmp/*
+!.gitignore
+Gemfile.lock
+.yardoc
+*.sqlite3

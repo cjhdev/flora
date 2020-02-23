@@ -1,0 +1,18 @@
+!!!
+%html
+
+  - title = "Flora+Sinatra Demo"
+
+  %head
+    %title=title
+    %link{:href => "/css/normalize.css", :rel => "stylesheet"}
+    %link{:href => "/css/skeleton.css", :rel => "stylesheet"}
+    %link{:href => "/css/mine.css", :rel => "stylesheet"}
+    
+  %body
+    %div.navbar
+      %h1
+        %a{:href => "/"}=title
+        
+    %div.mycontainer
+      = yield

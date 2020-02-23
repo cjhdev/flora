@@ -1,0 +1,47 @@
+%table
+  %thead
+    %tr
+      %th time
+      %th type
+      %th freq
+      %th SF+BW
+      %th NumGW
+      %th Margin
+      %th SNR
+      %th RSSI
+      %th counter
+      %th confirmed
+      %th adr
+      %th adrAckReq
+      %th fport
+      %th data
+      %th encrypted?
+      
+  %tbody
+    - events.each do |event|
+      %tr
+        %td= format_time(event.rx_time)
+        %td= format_event_type(event.type)
+        %td= event.freq
+        %td= format_sf_and_bw(event.sf, event.bw)
+        %td= event.lw_gateway_metas.size
+        %td= event.lw_gateway_metas.first.margin
+        %td= event.lw_gateway_metas.first.snr
+        %td= event.lw_gateway_metas.first.rssi          
+        
+        - if  event.kind_of? LwEventData          
+          %td= format_counter(event.counter)
+          %td= event.confirmed
+          %td= event.adr
+          %td= event.adr_ack_req
+          %td= event.fport
+          %td= format_data(event.data)
+          %td= event.encrypted
+        - else
+          %td= "-"
+          %td= "-"
+          %td= "-"
+          %td= "-"
+          %td= "-"
+          %td= "-"
+          %td= "-"
