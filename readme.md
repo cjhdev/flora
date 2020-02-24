@@ -12,7 +12,7 @@ Compared to [other](#see-also) Network Server projects, Flora:
 - doesn't implement application interfaces (e.g. it doesn't fire webhooks or force you to use protobufs)
 
 Flora is useful in situations where you want a scriptable Network Server 
-without a bunch of other stuff. The only run-time dependency (aside from Ruby) is Redis and this can be
+without a bunch of other stuff. The only run-time dependency (aside from Ruby) is Redis, which can be
 replaced by [FakeRedis](https://github.com/guilleiguaran/fakeredis).
 
 ## Features
