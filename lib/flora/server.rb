@@ -41,7 +41,7 @@ module Flora
     
       @logger = opts[:logger]
       @redis = opts[:redis]      
-      @defer = Defer.new(logger: @logger)      
+      @defer = DeferQueue.new(logger: @logger)      
       @dm = DeviceManager.new(**opts.merge(defer: @defer, redis: @redis))
       
       raise ArgumentError.new "redis object must be provided" if @redis.nil?
@@ -66,7 +66,7 @@ module Flora
       case opts[:gateway_connector]
       when :semtech    
         
-        @gw = Gateway.new(**opts) { |event| process_event(event) }
+        @gw = GatewayConnector.new(**opts) { |event| process_event(event) }
         
       else
       

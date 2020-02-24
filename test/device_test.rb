@@ -15,7 +15,7 @@ describe "Device" do
   end
   
   let(:gw_eui){ "agateway" }
-  let(:defer){ Flora::Defer.new(logger: logger) }
+  let(:defer){ Flora::DeferQueue.new(logger: logger) }
   let(:logger){Logger.new(STDOUT)}
   let(:redis){Redis.new}
   let(:dev_eui){SecureRandom.bytes(8)}

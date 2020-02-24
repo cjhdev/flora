@@ -1,15 +1,19 @@
-Flora
-=====
+Flora: A Composable LoRaWAN Network Server
+==========================================
 
 Flora is a [LoRaWAN](https://en.wikipedia.org/wiki/LoRa#LoRaWAN) 
-Network Server implemented in Ruby.
+Network Server written in Ruby.
 
-Compared to the server projects listed [here](#see-also), Flora:
+Compared to [other](#see-also) Network Server projects, Flora:
 
 - is far less mature and has fewer features
-- isn't executable on its own (it must be integrated into a Ruby script)
-- doesn't implement external application interfaces (DIY to your exact requirements)
-- only depends on Redis (which can be replaced by FakeRedis)
+- is composable rather than standalone (i.e. it must be integrated into a Ruby program)
+- doesn't implement a UI
+- doesn't implement application interfaces (e.g. it doesn't fire webhooks or force you to use protobufs)
+
+Flora is useful in situations where you want a scriptable Network Server 
+without a bunch of other stuff. The only run-time dependency (aside from Ruby) is Redis and this can be
+replaced by [FakeRedis](https://github.com/guilleiguaran/fakeredis).
 
 ## Features
 
@@ -29,7 +33,6 @@ Compared to the server projects listed [here](#see-also), Flora:
     - DeviceTimeReq/Ans
     - LinkADRReq/Ans  
 - end-to-end data privacy (LoRaWAN 1.1 mode only)
-- able to run without external dependencies (using [FakeRedis](https://github.com/guilleiguaran/fakeredis))
 
 ## Limitations
 
@@ -44,12 +47,12 @@ There are many since Flora is a work in progress.
 - additional channel plans available but not fully integrated with ADR
 - no feature for scheduling server to device management stuff
 
-The list goes on. Planned improvements are in [todo.md](todo.md)
+The list goes on. Planned improvements are in [todo.md](todo.md).
         
 ## Usage
 
-Recommend using Bundle to install from the git repo. Add the following
-to your Gemfile:
+Flora is a work in progress so using Bundle to install from the git
+repo is recommended. Add the following to your Gemfile:
 
 ~~~ ruby
 gem "flora", git: "https://github.com/cjhdev/flora"
@@ -135,18 +138,32 @@ Flora was originally developed to test LoRaWAN devices.
 
 ### Personal or Demo Networks
 
-Flora will work fine for managing small numbers of devices.
+Flora (in time) will work fine for managing small numbers of devices.
         
 ### Rapid Prototyping
 
 Flora is easy to integrate with Rails/Sinatra as shown in this
 [example](examples/sinatra).
 
+## How it Works
+
+Duplicate messages are expected if a LoRaWAN device is within range of 
+multiple gateways. It is desirable for a LoRaWAN Network Server to receive
+all duplicates in order to work out which gateway should be used if a 
+response message is to be sent back to the device.
+
+With that in mind, the simplified diagram below shows the flow of 
+receiving an original frame, receiving duplicates, and finalisation 
+of the original frame:
+
+![sequence diagram](sequence_diagram.png)
+
 ## See Also
 
 - [LDL](https://github.com/cjhdev/lora_device_lib) (Device implementation)
 - [ChirpStack](https://www.chirpstack.io/) (Server implementation)
 - [The Things Network](https://github.com/TheThingsNetwork) (Server implementation)
+- [lorawan-server](https://github.com/gotthardp/lorawan-server) (Server implementation)
 
 ## License
 

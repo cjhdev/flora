@@ -1,6 +1,6 @@
 module Flora
 
-  class Defer
+  class DeferQueue
 
     include LoggerMethods
 

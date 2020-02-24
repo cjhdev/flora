@@ -2,7 +2,7 @@ require 'socket'
 
 module Flora
 
-  class Gateway
+  class GatewayConnector
 
     include LoggerMethods
     include RedisKeys

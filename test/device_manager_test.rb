@@ -6,7 +6,7 @@ require 'fakeredis'
 
 describe "DeviceManager" do
 
-  let(:defer){ Flora::Defer.new }
+  let(:defer){ Flora::DeferQueue.new }
   let(:logger){ Logger.new(STDOUT) } 
   let(:redis){ Redis.new } 
   let(:dev_eui){SecureRandom.bytes(8)}

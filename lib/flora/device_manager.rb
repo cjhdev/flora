@@ -280,7 +280,6 @@ module Flora
       minor = args[:minor]||0
       
       join_nonce = args[:join_nonce]||0
-      dev_nonce = nil
       channel_plan = args[:channel_plan]||'default_eu'
       
       nwk_counter = 0

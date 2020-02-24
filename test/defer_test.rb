@@ -3,11 +3,11 @@ require 'flora'
 require 'logger'
 require 'securerandom'
 
-describe "Defer" do
+describe "DeferQueue" do
 
   describe "#on_timeout" do
   
-    let(:defer){ Flora::Defer.new(logger: Logger.new(STDOUT)) }
+    let(:defer){ Flora::DeferQueue.new(logger: Logger.new(STDOUT)) }
   
     before do
       defer.start

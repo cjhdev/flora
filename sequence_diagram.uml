@@ -1,0 +1,63 @@
+@startuml
+
+participant "GatewayConnector\n(thread pool)" as GatewayConnector
+participant Server
+participant DeviceManager
+participant Device
+participant "DeferQueue\n(thread pool)" as Defer
+
+[-> GatewayConnector: connector protocol
+[<-- GatewayConnector: connector protocol
+
+Server <- GatewayConnector: GatewayUpEvent
+
+Server -> DeviceManager: lookup device
+
+DeviceManager -> Device: create from Redis
+
+activate Device
+
+Server <-- DeviceManager: device exists
+
+Server -> Device: process GatewayUpEvent
+
+Device ->> Defer: defer finalisation until end of RX window
+
+note over Device: Device state persists in DeferQueue closure
+
+... duplicate frames received during RX window ...
+
+[-> GatewayConnector: connector protocol
+[<-- GatewayConnector: connector protocol
+
+Server <- GatewayConnector: GatewayUpEvent
+
+Server -> DeviceManager: lookup device
+
+DeviceManager -> Device: create from Redis
+
+activate Device
+
+Server <-- DeviceManager: device exists
+
+Server -> Device: process GatewayUpEvent
+
+deactivate Device
+
+... time passes until end of RX window ...
+
+note over Defer: RX window expired
+
+Defer -> Device: finalise original GatewayUpEvent
+
+GatewayConnector <- Device: GatewayDownEvent
+[<- GatewayConnector : connector protocol
+[--> GatewayConnector: connector protocol
+
+Device ->] : ActivationEvent
+Device ->] : DataUpEvent
+Device ->] : DeviceUpdateEvent
+
+deactivate Device
+
+@enduml

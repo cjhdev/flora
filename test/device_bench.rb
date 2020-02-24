@@ -10,7 +10,7 @@ describe "Device Benchmark" do
     defer.start
   end
 
-  let(:defer){ Flora::Defer.new(logger: logger) }
+  let(:defer){ Flora::DeferQueue.new(logger: logger) }
   let(:logger){ Logger.new(STDOUT) }
   let(:redis){Redis.new}
   let(:dev_nonce){ 0 }
