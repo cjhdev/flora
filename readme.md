@@ -15,6 +15,8 @@ Flora is useful in situations where you want a scriptable Network Server
 without a bunch of other stuff. The only run-time dependency (aside from Ruby) is Redis, which can be
 replaced by [FakeRedis](https://github.com/guilleiguaran/fakeredis).
 
+[![Build Status](https://travis-ci.org/cjhdev/flora.svg?branch=master)](https://travis-ci.org/cjhdev/flora)
+
 ## Features
 
 - class A
