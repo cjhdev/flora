@@ -24,22 +24,24 @@ module Flora
       
     end
     
-    [
-      :nocca,
-      :nodc,
-      :nodwell,
-      :auth_token
+    def nocca
+      @record[__method__]||false
+    end
     
-    ].each do |m|
+    def nodc
+      @record[__method__]||false
+    end
     
-      define_method m do 
-        @record[m]
-      end
+    def nodwell
+      @record[__method__]||false
+    end
     
+    def auth_token
+      @record[__method__]
     end
     
     def eui
-      record[:eui].unpack("m")
+      record[__method__].unpack("m")
     end
     
     # LNS format of acceptable datarates

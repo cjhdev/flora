@@ -27,6 +27,8 @@ module Flora
     XTIME = "xtime"
     GPSTIME = "gpstime"
 
+    FEATURES = "features"
+
     DEV_ADDR = "DevAddr"
     FCTRL = "FCtrl"
     FCNT = "FCnt"
@@ -127,9 +129,9 @@ module Flora
         
         when GatewayConnectEvent
         
-          name = ev.socket.name
+          name = ev.socket.name.unpack("m").first
         
-          gw = @gateway_manager.lookup_by_eui(ev.socket.name)
+          gw = @gateway_manager.lookup_by_eui(name)
         
           if gw and (ev.socket.auth_token == gw.auth_token)
           
@@ -143,11 +145,22 @@ module Flora
         
         when GatewayMessageEvent
 
+          name = ev.socket.name.unpack("m").first
+        
+          gw = @gateway_manager.lookup_by_eui(name)
+          
+          if gw.nil? or (ev.socket.auth_token != gw.auth_token)
+          
+            ev.socket.close
+            return
+            
+          end
+
           unless obj.kind_of? Hash
             ev.socket.message_and_close(JSON.to_json({error: "invalid message"}))
             return
           end
-
+          
           case obj[MSGTYPE]
           when VERSION
           
@@ -157,7 +170,7 @@ module Flora
             #
             features = obj[FEATURES].to_s.split
             
-            ev.socket.send(
+            ev.socket.message(
               JSON.to_json(
                 {
                   msgtype:      ROUTER_CONFIG,

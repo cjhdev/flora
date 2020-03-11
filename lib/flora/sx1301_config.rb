@@ -25,7 +25,7 @@ module Flora
       
     end
   
-    attr_reader :name
+    attr_reader :name, :tx_freq_range
   
     # @param name [String] unique name of this channel configuration for referencing
     # @param opts [Hash]
