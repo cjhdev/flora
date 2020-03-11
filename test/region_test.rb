@@ -6,10 +6,8 @@ describe "Region" do
 
   describe "EU_863_870" do
   
-    Flora::EU_863_870.new("test")
+    Flora::EU_863_870.new
     
-    Flora::ChannelPlan.plan('default_eu')
-  
   end
 
 

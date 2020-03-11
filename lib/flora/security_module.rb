@@ -4,10 +4,12 @@ module Flora
 
   class SecurityModule
 
+    include LoggerMethods
+
     OPTS = {}
 
     def initialize(keys, opts=OPTS)
-      @logger = opts[:logger]
+      @logger = opts[:logger]||NULL_LOGGER
       @keys = keys
     end
     

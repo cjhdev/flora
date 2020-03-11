@@ -16,7 +16,7 @@ module Flora
     def initialize(opts=OPTS)
       
       @net_id = opts[:net_id]||0
-      @logger = opts[:logger]
+      @logger = opts[:logger]||NULL_LOGGER
       @redis = opts[:redis]
       @defer = opts[:defer]
       
@@ -38,14 +38,14 @@ module Flora
         
         else
 
-          log_error "dev_addr #{dev_addr.to_s(16)} does not map to a device record"
+          log_error { "dev_addr #{dev_addr.to_s(16)} does not map to a device record" }
           nil
         
         end
         
       else
 
-        log_debug "dev_addr #{dev_addr.to_s(16)} not found"
+        log_debug { "dev_addr #{dev_addr.to_s(16)} not found" }
         nil
           
       end
@@ -68,7 +68,7 @@ module Flora
         
       else
       
-        log_debug "dev_eui #{bytes_to_hex(dev_eui)} not found"
+        log_debug{"dev_eui #{bytes_to_hex(dev_eui)} not found"}
         nil
       
       end
@@ -107,10 +107,17 @@ module Flora
           "dev_addr",
           "join_nonce",
           "dev_nonce",
-          "channel_plan",
           "net_id",
           "keys",
-          "up_counter"
+          "up_counter",
+          "region",
+          
+          "rx_delay",              
+          "rx1_dr_offset",
+          "rx2_dr",
+          "rx2_freq",
+          "adr_ack_limit",
+          "adr_ack_delay"
         )
         
         raise RestoreDeviceError.new "#{prefix}:minor is invalid" unless record['minor'].kind_of? Integer
@@ -120,10 +127,10 @@ module Flora
         raise RestoreDeviceError.new "#{prefix}:join_nonce is invalid" unless record['join_nonce'].kind_of? Integer
         raise RestoreDeviceError.new "#{prefix}:dev_nonce is invalid" unless record['dev_nonce'].nil? or record['dev_nonce'].kind_of? Integer
         raise RestoreDeviceError.new "#{prefix}:net_id is invalid" unless record['net_id'].nil? or record['net_id'].kind_of? Integer
-        raise RestoreDeviceError.new "#{prefix}:channel_plan is invalid" unless record['channel_plan'].kind_of? String
+        raise RestoreDeviceError.new "#{prefix}:channel_plan is invalid" unless record['region'].kind_of? String
         raise RestoreDeviceError.new "#{prefix}:up_counter is invalid" unless record['up_counter'].nil? or record['up_counter'].kind_of? Integer
         
-        raise RestoreDeviceError.new "#{prefix}:channel_plan is unknown" unless ChannelPlan.plan(record['channel_plan'])
+        raise RestoreDeviceError.new "#{prefix}:region is unknown" unless Region.by_name(record['region'])
         
         raise RestoreDeviceError.new "#{prefix}:keys is invalid" unless record['keys'].kind_of? Hash
         
@@ -147,7 +154,7 @@ module Flora
         # presence of join_eui means device has been joined
         if record['join_eui']
         
-          log_debug "exported record appears to be for a joined device"
+          log_debug{"exported record appears to be for a joined device"}
         
           raise RestoreDeviceError.new "#{prefix}:keys:fnwksint is invalid" unless is_a_key?(keys['fnwksint'])
           raise RestoreDeviceError.new "#{prefix}:keys:snwksint is invalid" unless is_a_key?(keys['snwksint'])
@@ -163,7 +170,7 @@ module Flora
           
         else
         
-          log_debug "exported record appears to be for an unjoined device"
+          log_debug{"exported record appears to be for an unjoined device"}
         
           record.delete("dev_nonce")          
           
@@ -188,7 +195,7 @@ module Flora
         nwk_counter = exported['fields']['nwk_counter']
         
         # fixme: this leaks keys to the log
-        log_debug("restoring #{JSON.to_json(record)}")
+        log_debug{"restoring #{JSON.to_json(record)}"}
         
         redis.multi do
         
@@ -264,7 +271,15 @@ module Flora
     # @option args [String,nil] :app_key      OPTIONAL 16 byte string which when absent enables end-to-end application encryption
     # @option args [Integer,nil] :minor       OPTIONAL LoRaWAN minor version number (0 or 1) (defaults to 0)
     # @option args [Integer,nil] :join_nonce  OPTIONAL insert a non-default join_nonce
-    # @option args [String,nil] :channel_plan OPTIONAL specify a channel plan (defaults to 'default_eu')
+    #
+    # @option args [String] :region           the region this device implements
+    #
+    # @option args [Integer,nil] :rx_delay        OPTIONAL
+    # @option args [Integer,nil] :rx1_dr_offset   OPTIONAL
+    # @option args [Integer,nil] :rx2_dr          OPTIONAL
+    # @option args [Integer,nil] :rx2_freq        OPTIONAL
+    # @option args [Integer,nil] :adr_ack_limit   OPTIONAL
+    # @option args [Integer,nil] :adr_ack_delay   OPTIONAL
     #
     # @return [Device]
     #
@@ -280,7 +295,14 @@ module Flora
       minor = args[:minor]||0
       
       join_nonce = args[:join_nonce]||0
-      channel_plan = args[:channel_plan]||'default_eu'
+      region = args[:region]||:EU_863_870
+      
+      rx_delay = args[:rx_delay]
+      rx1_dr_offset = args[:rx1_dr_offset]
+      rx2_dr = args[:rx2_dr]
+      rx2_freq = args[:rx2_freq]
+      adr_ack_limit = args[:adr_ack_limit]
+      adr_ack_delay = args[:adr_ack_delay]
       
       nwk_counter = 0
       app_counter = 0
@@ -300,18 +322,34 @@ module Flora
       
       raise CreateDeviceError.new "args:join_nonce if defined must be an integer in the range 0..(2**24-1)" unless (0..2**24-1).include? join_nonce
       
-      raise CreateDeviceError.new "args:channel_plan if defined must be a string" unless channel_plan.kind_of? String
-      raise CreateDeviceError.new "args:channel_plan '#{channel_plan}' is unknown" unless ChannelPlan.plan(channel_plan)
-      
       if minor == 0 and app_key
-        log_info "note that args:app_key is not required args:minor is 0 (and therefore discarded)"
+        log_info { "note that args:app_key is not required args:minor is 0 (and therefore discarded)" }
         app_key = nil
+      end
+      
+      Region.by_name(region).tap do |cls|
+      
+        raise CreateDeviceError.new "region: '#{region}' is unknown" unless cls
+      
+        begin
+          cls.new(
+            rx_delay: args[:rx_delay],
+            rx1_dr_offset: args[:rx1_dr_offset],
+            rx2_dr: args[:rx2_dr],
+            rx2_freq: args[:rx2_freq],
+            adr_ack_limit: args[:adr_ack_limit],
+            adr_ack_delay: args[:adr_ack_delay]
+          )
+        rescue
+          raise CreateDeviceError.new "fine tuning options not accepted for this region"
+        end
+      
       end
       
       name = [dev_eui].pack("m0")
       
       record = {
-        channel_plan: channel_plan,
+        region: region,
         dev_addr: dev_addr,
         dev_eui: name,              
         keys: {
@@ -319,8 +357,18 @@ module Flora
           nwk: [nwk_key].pack("m0")
         },         
         join_nonce: join_nonce,        
-        minor: minor
-      }
+        minor: minor,
+        
+        rx_delay: rx_delay,
+        rx1_dr_offset: rx1_dr_offset,
+        rx2_dr: rx2_dr,
+        rx2_freq: rx2_freq,
+        adr_ack_limit: adr_ack_limit,
+        adr_ack_delay: adr_ack_delay,
+        
+        gw_join_channels: []
+               
+      }.compact
       
       if redis.exists(rk_dev_addr(dev_addr))
       

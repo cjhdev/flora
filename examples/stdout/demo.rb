@@ -36,6 +36,10 @@ end
 # add your devices here
 
 server.create_device(
+  eui: ("\x00" * 8)
+)
+
+server.create_device(
   dev_eui: "\x4C\xFE\x95\x71\x00\xF0\x9C\x3A", 
   dev_addr: 0,
   nwk_key: "\x20\x84\x98\x7E\x78\xC8\x51\xEE\x49\x5E\x1D\x78\x34\x81\xD4\x75",

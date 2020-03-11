@@ -24,13 +24,13 @@ describe "Device Benchmark" do
   let(:event) do
     Flora::GatewayUpEvent.new(
       rx_time: Time.now,
-      tmst: Time.now.to_i, 
       freq: Flora::EU_863_870::CHANNELS.first.freq,
       sf: 12,
       bw: 125000,
       data: frame.encode,
       frame: frame,
-      gw_eui: gw_eui
+      id: gw_eui,
+      gw_param: {tmst: Time.now.to_i},
     )      
   end
 

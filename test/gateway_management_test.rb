@@ -3,7 +3,7 @@ require 'flora'
 
 describe "Gateway management" do
 
-  let(:gw){ Flora::GatewayConnector.new }
+  let(:gw){ Flora::UDPConnector.new }
 
   it "is stopped after #initialise" do
     refute gw.running?

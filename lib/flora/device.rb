@@ -22,19 +22,26 @@ module Flora
 
     def initialize(**opts)
  
-      @logger = opts[:logger]
+      @logger = opts[:logger]||NULL_LOGGER
       @record = opts[:record]||{}      
       @sm = SecurityModule.new(@record[:keys], logger: @logger)      
       @redis = opts[:redis]
-      @plan = ChannelPlan.plan(@record[:channel_plan])
+      @plan = Region.by_name(@record[:region]).new(
+        rx_delay: rx_delay,
+        rx1_dr_offset: rx1_dr_offset,
+        rx2_dr: rx2_dr,
+        rx2_freq: rx2_freq,
+        adr_ack_limit: adr_ack_limit,
+        adr_ack_delay: adr_ack_delay,
+        gw_channels: join_gw_channels        
+      )
+      
       @defer = opts[:defer]
       @net_id = opts[:net_id]||0
       @adr_settings = nil
       
       raise ArgumentError.new "defer argument is required" unless @defer
       
-      raise RangeError.new "channel plan '#{@record[:channel_plan]}' is undefined" unless @plan
-                
     end
     
     def process_join_request(event)
@@ -43,7 +50,7 @@ module Flora
       
       if params.nil?
         
-        log_debug "frame_rejected: freq, sf, or bw not valid for channel plan"
+        log_debug { "frame_rejected: freq, sf, or bw not valid for channel plan" }
         return
         
       end
@@ -59,7 +66,7 @@ module Flora
         
           if up_counter
         
-            log_debug "frame_rejected: dev_nonce has been replayed after data frame received"
+            log_debug { "frame_rejected: dev_nonce has been replayed after data frame received" }
             return
             
           end
@@ -69,7 +76,7 @@ module Flora
         
             if event.data != join_request_frame
             
-              log_debug "frame_rejected: duplicate join accept does not match the original"
+              log_debug {"frame_rejected: duplicate join accept does not match the original"}
               return
               
             end
@@ -78,7 +85,7 @@ module Flora
           
             if @sm.mic(:nwk, event.data.slice(0..-5)) != event.frame.mic         
           
-              log_debug "frame_rejected: mic failed"
+              log_debug {"frame_rejected: mic failed"}
               return        
               
             end
@@ -86,12 +93,11 @@ module Flora
           end
         
           save_return_path!(
-            gw_eui: event.gw_eui, 
+            time: event.rx_time.to_f,
             snr: event.snr, 
             rssi: event.rssi, 
-            ip_addr: event.ip_addr, 
-            port: event.port, 
-            time: event.rx_time.to_f
+            id: event.id,
+            gw_param: event.gw_param.to_h          
           )
 
           # indicate duplicate accepted
@@ -105,18 +111,17 @@ module Flora
       
         if @sm.mic(:nwk, event.data.slice(0..-5)) != event.frame.mic         
           
-          log_debug "frame_rejected: mic failed"
+          log_debug {"frame_rejected: mic failed"}
           return        
           
         end
         
         save_return_path!(
-          gw_eui: event.gw_eui, 
-          snr: event.snr, 
-          rssi: event.rssi, 
-          ip_addr: event.ip_addr, 
-          port: event.port, 
-          time: event.rx_time.to_f
+            time: event.rx_time.to_f,
+            snr: event.snr, 
+            rssi: event.rssi, 
+            id: event.id,
+            gw_param: event.gw_param.to_h                          
         )
       
         # ensure a winner to the race (and indicate duplicate accepted)
@@ -138,6 +143,9 @@ module Flora
       
       @record.delete(:up_counter)
       @record.delete(:data_up_frame)
+      
+      # take channels from this gateway
+      @record[:gw_channels] = event.gw_channels
       
       clear_nwk_and_app_counter!
       clear_uplink_history!
@@ -180,14 +188,13 @@ module Flora
 
           yield(
             GatewayDownEvent.new(
-              tmst: event.tmst + (plan.ja_delay * 1000000),
-              freq: params.rx1.freq,
-              sf: params.rx1.sf,
-              bw: params.rx1.bw,
+              
+              gw_param: path[:gw_param],
+              
               data: response,
-              ip_addr: path[:ip_addr],
-              port: path[:port],
-              power: 14
+              
+              rx_delay: plan.ja_delay,              
+              rx_param: params              
             )
           )
           
@@ -202,12 +209,11 @@ module Flora
               bw: event.bw, 
               dev_nonce: dev_nonce,
               join_nonce: join_nonce,
-              gws: all_path.map do |rec| 
-                rec.delete(:ip_addr)
-                rec.delete(:port)
-                rec.delete(:time)
+              rate: params.up.rate,
+              gws: all_path.map do |rec|
+                rec.delete(:gw_param)
                 rec[:margin] = snr_margin(event.sf, event.snr)
-                rec[:gw_eui] = rec[:gw_eui].unpack("m").first
+                rec[:id] = rec[:id].unpack("m").first
                 rec
               end              
             )
@@ -231,14 +237,14 @@ module Flora
       
       if params.nil?
         
-        log_debug "frame_rejected: freq, sf, or bw not valid for channel plan"
+        log_debug{"frame_rejected: freq, sf, or bw not valid for channel plan"}
         return
         
       end
     
       if not joined?        
         
-        log_debug "frame_rejected: device not joined"
+        log_debug{"frame_rejected: device not joined"}
         return        
         
       end
@@ -251,7 +257,7 @@ module Flora
         
           if ready_at?(event.rx_time)
         
-            log_debug "frame_rejected: duplicate received after #{plan.rx_delay}s"
+            log_debug{"frame_rejected: duplicate received after #{plan.rx_delay}s"}
             return
     
           end
@@ -261,7 +267,7 @@ module Flora
           
             if data_up_frame != event.data
             
-              log_debug "frame_rejected: duplicate frame does not match original"
+              log_debug{"frame_rejected: duplicate frame does not match original"}
               return
             
             end
@@ -270,7 +276,7 @@ module Flora
             
             if mic_data_up(counter, event.data, params.up.rate, params.up.chan, event.freq) != event.frame.mic 
       
-              log_debug "frame_rejected: mic failed"
+              log_debug{"frame_rejected: mic failed"}
               return
             
             end
@@ -278,13 +284,11 @@ module Flora
           end
           
           save_return_path!(
-            gw_eui: event.gw_eui, 
+            time: event.rx_time.to_f,
             snr: event.snr, 
             rssi: event.rssi, 
-            ip_addr: event.ip_addr, 
-            port: event.port, 
-            counter: counter, 
-            time: event.rx_time.to_f
+            id: event.id,
+            gw_param: event.gw_param.to_h                                              
           )
           
           return self
@@ -298,7 +302,7 @@ module Flora
         
           if not ready_at?(event.rx_time)
             
-            log_debug "frame_rejected: data received too soon after previous data frame"
+            log_debug{"frame_rejected: data received too soon after previous data frame"}
             return
             
           end
@@ -309,7 +313,7 @@ module Flora
       
         if ready_at?(event.rx_time)
       
-          log_debug "frame_rejected: data received too soon after previous join request frame"
+          log_debug{"frame_rejected: data received too soon after previous join request frame"}
           return
           
         end
@@ -318,18 +322,17 @@ module Flora
   
       if mic_data_up(counter, event.data, params.up.rate, params.up.chan, event.freq) != event.frame.mic 
       
-        log_debug "frame_rejected: mic failed"
+        log_debug{"frame_rejected: mic failed"}
         return
       
       end
       
       save_return_path!(
-        gw_eui: event.gw_eui, 
+        time: event.rx_time.to_f,
         snr: event.snr, 
         rssi: event.rssi, 
-        ip_addr: event.ip_addr, 
-        port: event.port, 
-        time: event.rx_time.to_f
+        id: event.id,
+        gw_param: event.gw_param.to_h                                
       )
       
       # ensure a winner to the race
@@ -399,19 +402,19 @@ module Flora
             when ResetInd
               
               ans = ResetConf.new(minor)
-              log_info "mac command: #{JSON.to_json(cmd.to_h)} answered by #{JSON.to_json(ans.to_h)}"
+              log_info { "mac command: #{JSON.to_json(cmd.to_h)} answered by #{JSON.to_json(ans.to_h)}" }
               ans.encode(opts)
             
             when LinkCheckReq
             
               ans = LinkCheckAns.new(all_path.size, snr_margin(event.sf, path[:snr]))
-              log_info "mac command: #{JSON.to_json(cmd.to_h)} answered by #{JSON.to_json(ans.to_h)}"
+              log_info { "mac command: #{JSON.to_json(cmd.to_h)} answered by #{JSON.to_json(ans.to_h)}" }
               ans.encode(opts)
             
             when RekeyInd
             
               ans = RekeyConf.new(minor)
-              log_info "mac command: #{JSON.to_json(cmd.to_h)} answered by #{JSON.to_json(ans.to_h)}"
+              log_info { "mac command: #{JSON.to_json(cmd.to_h)} answered by #{JSON.to_json(ans.to_h)}" }
               ans.encode(opts)
             
             when DeviceTimeReq
@@ -421,26 +424,24 @@ module Flora
               # fixme 1/256 fractions
               
               ans = DeviceTimeAns.new(_system_time.to_i, 0)              
-              log_info "mac command: #{JSON.to_json(cmd.to_h)} answered by #{JSON.to_json(ans.to_h)}"
+              log_info { "mac command: #{JSON.to_json(cmd.to_h)} answered by #{JSON.to_json(ans.to_h)}" }
               ans.encode(opts)
               
             when LinkADRAns
                 
-              orig = LinkADRReq.new(adr_settings.rate, adr_settings.power, 0x00ff, 0, adr_settings.nb_trans)
-            
-              log_info "mac command: #{JSON.to_json(cmd.to_h)} to answer #{JSON.to_json(orig.to_h)}"
+              log_info { "mac command: #{JSON.to_json(cmd.to_h)} to answer <orig>" }
               
               adr_settings.ack_pending = false
               
             when DutyCycleAns, RXParamSetupAns, NewChannelAns, RXTimingSetupAns, TXParamSetupAns, DlChannelAns, ADRParamSetupAns, DeviceTimeAns, RejoinParamSetupAns
             
-              log_info "mac command: unexpected #{JSON.to_json(cmd.to_h)}"
+              log_info { "mac command: unexpected #{JSON.to_json(cmd.to_h)}" }
               
             when DevStatusAns
             
               battery_level = cmd.battery
               device_margin = cmd.margin
-              log_info "mac command: #{JSON.to_json(cmd.to_h)}"
+              log_info { "mac command: #{JSON.to_json(cmd.to_h)}" }
             end
           
           end
@@ -449,7 +450,7 @@ module Flora
           
           if event.frame.adr_ack_req or due_for_adr?
           
-            log_info "processing adr"
+            log_info { "processing adr" }
           
             # this should already be sorted by order of insertion
             sorted_history = @redis.smembers(rk_uplink_history(name)).map{|s|JSON.from_json(s)}
@@ -523,11 +524,15 @@ module Flora
             adr_settings.ack_pending = true
             adr_settings.ack_counter = counter
             
-            req = LinkADRReq.new(adr_settings.rate, adr_settings.power, 0x00ff, 0, adr_settings.nb_trans)
+            plan.adr_mask.each do |mask|
+              
+              req = LinkADRReq.new(adr_settings.rate, adr_settings.power, mask.ch_mask, mask.ch_mask_cntl, adr_settings.nb_trans)
             
-            log_info "adr result #{JSON.to_json(req.to_h)}"
-            
-            req.encode(opts)
+              log_info { "adr result #{JSON.to_json(req.to_h)}" }
+              
+              req.encode(opts)
+              
+            end
             
           end
           
@@ -566,14 +571,13 @@ module Flora
 
             yield(
               GatewayDownEvent.new(
-                tmst: event.tmst + (plan.rx_delay * 1000000),
-                freq: plan.rx1_freq(event.freq),
-                sf: params.rx1.sf,
-                bw: params.rx1.bw,
+                
+                gw_param: path[:gw_param],
+                
                 data: output,
-                ip_addr: path[:ip_addr],
-                port: path[:port],
-                power: 14
+                
+                rx_delay: plan.ja_delay,                  
+                rx_param: params                
               )
             )
             
@@ -593,11 +597,9 @@ module Flora
               device_margin: device_margin,
               freq: event.freq,
               gws: all_path.map do |rec| 
-                rec.delete(:ip_addr)
-                rec.delete(:port)
-                rec.delete(:time)
+                rec.delete(:gw_param)
                 rec[:margin] = snr_margin(event.sf, event.snr)
-                rec[:gw_eui] = rec[:gw_eui].unpack("m").first
+                rec[:id] = rec[:id].unpack("m").first
                 rec
               end,
               sf: params.up.sf,
@@ -667,7 +669,7 @@ module Flora
           end
           
         end.
-        uniq!{|rec|rec[:gw_eui]}
+        uniq!{|rec|rec[:id]}
       
       end
       

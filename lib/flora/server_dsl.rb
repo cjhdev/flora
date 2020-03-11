@@ -8,7 +8,7 @@ module Flora
         event_queue_depth: 100,
         net_id: 0       # arbitrary OK for experimental
       }
-      @logger = opts[:logger]    
+      @logger = opts[:logger]
       self.instance_exec(self, &block)      
     end
   
@@ -111,6 +111,11 @@ module Flora
     #
     def redis(conn)
       @settings[:redis] = conn
+      self
+    end
+    
+    def on_gateway_lookup(**opts, &block)
+      @settings[:on_gateway_lookup] = block
       self
     end
     

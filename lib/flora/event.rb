@@ -1,8 +1,7 @@
 module Flora
 
-  GatewayUpEvent = Struct.new(:token, :rx_time, :tmst, :freq, :sf, :bw, :frame, :data, :gw_eui, :snr, :rssi, :ip_addr, :port, keyword_init: true)
-  GatewayDownEvent = Struct.new(:tmst, :freq, :sf, :bw, :power, :data, :ip_addr, :port, keyword_init: true)
-  GatewayPullEvent = Struct.new(:token, :gw_eui, :ip_addr, :port, keyword_init: true) 
+  GatewayUpEvent = Struct.new(:rx_time, :id, :freq, :sf, :bw, :frame, :data, :snr, :rssi, :gw_param, :gw_channels, keyword_init: true)
+  GatewayDownEvent = Struct.new(:gw_param, :tmst, :data, :rx_delay, :rx_param, keyword_init: true)
   
   # Sent to application to indicate device activation
   #
@@ -20,7 +19,7 @@ module Flora
   #
   # gateway meta data hash:
   #
-  # @option gw [String] :gw_eui   byte string
+  # @option gw [String] :id     byte string
   # @option gw [String] :rssi
   # @option gw [String] :snr
   # @option gw [String] :margin
@@ -50,7 +49,7 @@ module Flora
   #
   # gateway meta data hash:
   #
-  # @option gw [String] :gw_eui   byte string
+  # @option gw [String] :id   byte string
   # @option gw [String] :rssi
   # @option gw [String] :snr
   # @option gw [String] :margin

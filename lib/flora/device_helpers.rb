@@ -9,10 +9,18 @@ module Flora
       :dev_nonce,
       :join_nonce,
       :up_counter,
-      :channel_plan,
       :dev_addr,
       :minor,
       :ready_at,
+      
+      :rx_delay,
+      :rx1_dr_offset,
+      :rx2_dr,
+      :rx2_freq,
+      :adr_ack_limit,
+      :adr_ack_delay,
+      
+      :join_gw_channels
       
     ].each do |m|
     

@@ -5,7 +5,7 @@ module Flora
     include LoggerMethods
   
     def initialize(**opts)
-      @logger = opts[:logger]
+      @logger = opts[:logger]||NULL_LOGGER
       @up_lookup = MacCommand.subs.select{|c|c.upstream}.map{|c|[c.tag,c]}.to_h
       @down_lookup = MacCommand.subs.select{|c|c.upstream}.map{|c|[c.tag,c]}.to_h
     end
@@ -22,12 +22,12 @@ module Flora
         
         cls = @up_lookup[tag]
 
-        log_debug "unknown MAC command tag #{tag}" unless cls
+        log_debug { "unknown MAC command tag #{tag}" } unless cls
         break unless cls
         
         obj = cls.decode(s)
         
-        log_debug "could not decode MAC command tag #{tag}" unless obj
+        log_debug {"could not decode MAC command tag #{tag}"} unless obj
         break unless obj
         
         result << obj        

@@ -6,7 +6,7 @@ module Flora
 
     def initialize(**opts)
       
-      @logger = opts[:logger]
+      @logger = opts[:logger]||NULL_LOGGER
       
       @worker_queue_depth = opts[:event_queue_depth]||100
       @num_workers = opts[:num_event_workers]||5
@@ -19,10 +19,7 @@ module Flora
       @worker_queue = TimeoutQueue.new(max: @worker_queue_depth)      
       @worker = []
       
-      # fixme, need to start/stop this
-      @timer_thread = Thread.new do             
-        timer_task
-      end
+      @timer_thread = nil
       
       @running = false
       
@@ -39,13 +36,17 @@ module Flora
                 begin
                   action.call
                 rescue => e
-                  log_debug "caught #{e}: #{e.backtrace.join("\n")}"
+                  log_debug{"caught #{e}: #{e.backtrace.join("\n")}"}
                 end
               end
             rescue ClosedQueueError
-            rescue => ex
-              log_error ex
             end
+          end
+        end
+        @timer_thread = Thread.new do
+          begin
+            timer_task
+          rescue Interrupt
           end
         end
         @running = true
@@ -55,6 +56,7 @@ module Flora
     
     def stop
       if @running
+        @timer_thread.raise Interrupt
         @worker_queue.close
         @worker.each(&:join)
         @worker.clear
@@ -160,7 +162,7 @@ module Flora
         if expired
           begin
             @worker_queue.push(expired.block)
-          rescue
+          rescue ClosedQueueError
           end
         end
           

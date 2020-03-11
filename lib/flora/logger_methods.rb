@@ -1,3 +1,5 @@
+require 'logger'
+
 module Flora
 
   LOG_FORMATTER = Proc.new do |severity, datetime, progname, msg|
@@ -6,20 +8,23 @@ module Flora
 
   module LoggerMethods
   
-    def log_info(msg)        
-      @logger.info { "#{log_header if self.respond_to? :log_header}#{msg}" } if @logger
+    NULL_LOGGER = Logger.new(IO::NULL)
+    NULL_LOGGER.level = Logger::WARN
+  
+    def log_info(&block)        
+      @logger.info(log_header, &block)
     end
     
-    def log_error(msg)
-      @logger.error { "#{log_header if self.respond_to? :log_header}#{msg}" } if @logger    
+    def log_error(&block)        
+      @logger.debug(log_header, &block)
     end
     
-    def log_debug(msg)
-      @logger.debug { "#{log_header if self.respond_to? :log_header}#{msg}" } if @logger
+    def log_debug(&block)        
+      @logger.debug(log_header, &block)
     end
 
     def log_header
-      "#{self.class.name.split("::").last}: "
+      self.class.name
     end
     
   end

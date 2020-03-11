@@ -40,7 +40,6 @@ describe "Device" do
   let(:join_event) do
     Flora::GatewayUpEvent.new(
       rx_time: Time.now,
-      tmst: Time.now.to_i, 
       freq: Flora::EU_863_870::CHANNELS.first.freq,
       sf: 12,
       bw: 125000,
@@ -48,7 +47,8 @@ describe "Device" do
       frame: join_frame,
       rssi: -50,
       snr: 9,
-      gw_eui: gw_eui
+      id: gw_eui,
+      gw_param: {tmst: Time.now.to_i},
     )      
   end
   
@@ -100,7 +100,6 @@ describe "Device" do
     let(:data_event) do
       Flora::GatewayUpEvent.new(
         rx_time: Time.now,
-        tmst: Time.now.to_i, 
         freq: freq,
         sf: 12,
         bw: 125000,
@@ -108,7 +107,8 @@ describe "Device" do
         frame: data_frame,
         rssi: -50,
         snr: 9,
-        gw_eui: gw_eui
+        id: gw_eui,
+        gw_param: {tmst: Time.now.to_i},
       )      
     end
     

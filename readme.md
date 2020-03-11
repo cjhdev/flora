@@ -12,8 +12,11 @@ Compared to [other](#see-also) Network Server projects, Flora:
 - doesn't implement application interfaces (e.g. it doesn't fire webhooks or force you to use protobufs)
 
 Flora is useful in situations where you want a scriptable Network Server 
-without a bunch of other stuff. The only run-time dependency (aside from Ruby) is Redis, which can be
-replaced by [FakeRedis](https://github.com/guilleiguaran/fakeredis).
+without a bunch of other stuff. Flora currently depends on:
+
+- [nio4r](https://github.com/socketry/nio4r) (for reactor pattern sockets)
+- [websocket-driver](https://github.com/faye/websocket-driver-ruby) (for LNS gateway protocol)
+- redis (or [FakeRedis](https://github.com/guilleiguaran/fakeredis))
 
 [![Build Status](https://travis-ci.org/cjhdev/flora.svg?branch=master)](https://travis-ci.org/cjhdev/flora)
 
@@ -21,13 +24,14 @@ replaced by [FakeRedis](https://github.com/guilleiguaran/fakeredis).
 
 - class A
 - OTAA
-- gateway to server protocol
+- gateway to server protocol    
     - ["Semtech UDP Packet Forwarder" format](https://github.com/Lora-net/packet_forwarder)
+    - [LNS format](https://doc.sm.tc/station/tcproto.html) (recommended)
 - LoRaWAN 1.1 support
     - key derivation etc.
     - Rekey command handling
-- channel plans
-    - 'default_eu' (EU_863_870)
+- plug-and-play channel plans
+    - devices are configured at join time according to the capability of the joining gateway
 - ADR (as per LoRa Networks Rate Adaption document)
 - mac command handling
     - LinkCheckReq/Ans
@@ -40,14 +44,11 @@ replaced by [FakeRedis](https://github.com/guilleiguaran/fakeredis).
 
 There are many since Flora is a work in progress.
 
-- no way to authenticate gateways
 - no support for class B and C
 - no support for ABP
 - no support for rejoin
-- no feature for adding channel plans at run-time
 - retry confirmed data frames not handled correctly (server will drop duplicates)
-- additional channel plans available but not fully integrated with ADR
-- no feature for scheduling server to device management stuff
+- no feature for scheduling server to do device management stuff
 
 The list goes on. Planned improvements are in [todo.md](todo.md).
         
@@ -71,7 +72,7 @@ server = Flora::Server.create do
 
   redis Redis.new
 
-  gateway_connector :semtech
+  gateway_connector :lns
   
   logger Logger.new(STDOUT)
   
@@ -96,18 +97,25 @@ server = Flora::Server.create do
   
 end
 
-dev_eui_for_your_device = "\x00\x00\x00\x00\x00\x00\x00\x01"
+# gateways must be registered
+server.create_gateway(
+    eui: ("\x01" * 8),
+    config: "sx1301_eu868_1",
+    auth_token: "hello world"
+)
+
+eui_for_your_device = ("\x02" * 8)
 
 # create a fresh 1.0 device
 server.create_device(
-    dev_eui: dev_eui_for_your_device,
-    nwk_key: "\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01",
-    region: 'default_eu',
+    dev_eui: eui_for_your_device,
+    nwk_key: ("\x00" * 16),
+    region: 'EU_863_870',
     minor: 0
 )
 
 # export a device record in format expected by #restore device
-exported_record = server.export_device(dev_eui_for_your_device)
+exported_record = server.export_device(eui_for_your_device)
 
 # restore a previously exported device record
 server.restore_device(exported_record)
@@ -133,7 +141,8 @@ Try out these worked examples:
 
 Flora was originally developed to test LoRaWAN devices.
 
-- A Flora test instance can run in a single process and without external dependencies
+- A Flora test instance can run in a single process without a database
+- Does not depend on services like MQTT
 - There are no scattered configuration files
 - No need to use containers
 - Everything can be scripted

@@ -39,10 +39,11 @@ module Flora
     #
     def initialize(**opts)
     
-      @logger = opts[:logger]
+      @logger = opts[:logger]||NULL_LOGGER
       @redis = opts[:redis]      
       @defer = DeferQueue.new(logger: @logger)      
       @dm = DeviceManager.new(**opts.merge(defer: @defer, redis: @redis))
+      @gm = GatewayManager.new(**opts.merge(defer: @defer, redis: @redis))
       
       raise ArgumentError.new "redis object must be provided" if @redis.nil?
       
@@ -66,7 +67,11 @@ module Flora
       case opts[:gateway_connector]
       when :semtech    
         
-        @gw = GatewayConnector.new(**opts) { |event| process_event(event) }
+        @gw = UDPConnector.new(**opts) { |event| process_event(event) }
+        
+      when :lns
+      
+        #@gw = LNSConnector.new(**opts.merge({gw_manager: @gw_manager})) { |event| process_event(event) }
         
       else
       
@@ -79,7 +84,7 @@ module Flora
     # opens the gateway port and begins processing events
     def start
       if not @gw.running?
-        log_info "starting..."
+        log_info { "starting..." }
         @gw.start
         @defer.start        
       end
@@ -88,10 +93,10 @@ module Flora
     # closes the gateway port and finishes processing events
     def stop
       if @gw.running?
-        log_info "stopping..."
+        log_info { "stopping..." }
         @gw.stop
         @defer.stop
-        log_info "stopped"
+        log_info { "stopped" }
       end
     end
     

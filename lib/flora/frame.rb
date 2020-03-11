@@ -203,7 +203,7 @@ module Flora
       return unless mic
       
       if port == 0 and opts.size > 0
-        log_debug "discarding frame: cannot have port=0 and opts.size>0"
+        log_debug{"discarding frame: cannot have port=0 and opts.size>0"}
         return
       end
   

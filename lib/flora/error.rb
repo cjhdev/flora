@@ -11,5 +11,11 @@ module Flora
   
   class JSONError < StandardError
   end
+  
+  class CreateGatewayError < StandardError
+  end
+  
+  class SX1301ConfigError < StandardError
+  end
 
 end

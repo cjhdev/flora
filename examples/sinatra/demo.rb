@@ -62,7 +62,7 @@ server = Flora::Server.create do
       
       LwGatewayMeta.create do |m|
       
-        m.gw_eui = [gw_meta[:gw_eui]].pack("m0")
+        m.gw_eui = [gw_meta[:id]].pack("m0")
         
         m.snr = gw_meta[:snr]
         m.rssi = gw_meta[:rssi]

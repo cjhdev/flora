@@ -2,48 +2,65 @@ module Flora
 
   module RedisKeys
   
+    EUI         = 'EUI:'.freeze
+    DEV_ADDR    = 'ADDR:'.freeze
+    RETURN      = 'RP:'.freeze
+    DOWNLINK    = 'DL:'.freeze
+    FIRST_JOIN  = 'FIRST_JOIN:'.freeze
+    FIRST_DATA  = 'FIRST_DATA:'.freeze
+    NWK_COUNTER = 'NWK_COUNTER:'.freeze
+    APP_COUNTER = 'APP_COUNTER:'.freeze
+    UP_HISTORY  = 'UP_HIST:'.freeze
+    ADR_SETTING = 'ADR_SETTING:'.freeze
+    GW_DL_ADDR = 'GW_DL_ADDR:'.freeze
+    GW_EUI     = 'GW_EUI:'.freeze
+  
     def rk_eui(name)
-      Prefix::EUI + name
+      EUI + name
     end
     
     def rk_dev_addr(dev_addr)
-      Prefix::DEV_ADDR + dev_addr.to_s
+      DEV_ADDR + dev_addr.to_s
     end
     
     def rk_nwk_counter(name)
-      Prefix::NWK_COUNTER + name
+      NWK_COUNTER + name
     end
     
     def rk_app_counter(name)
-      Prefix::APP_COUNTER + name
+      APP_COUNTER + name
     end
     
     def rk_downlink(name)
-      Prefix::DOWNLINK + name
+      DOWNLINK + name
     end
     
     def rk_return_path(name)
-      Prefix::RETURN + name
+      RETURN + name
     end
     
     def rk_first_join(name)
-      Prefix::FIRST_JOIN + name
+      FIRST_JOIN + name
     end
     
     def rk_first_data(name)
-      Prefix::FIRST_DATA + name
+      FIRST_DATA + name
     end
     
     def rk_uplink_history(name)
-      Prefix::UP_HISTORY + name
+      UP_HISTORY + name
     end
     
     def rk_adr_setting(name)
-      Prefix::ADR_SETTING + name
+      ADR_SETTING + name
     end
     
     def gw_dl_addr(eui)
-      Prefix::GW_DL_ADDR + eui
+      GW_DL_ADDR + eui
+    end
+    
+    def rk_gw_eui(eui)
+      GW_EUI + eui
     end
     
   end
