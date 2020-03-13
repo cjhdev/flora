@@ -53,8 +53,12 @@ module Flora
       
     end
     
+    def region_code
+      @region.name.split("::").last
+    end
+    
     def region
-      @region.name
+      @region
     end
     
     def drs
@@ -65,7 +69,7 @@ module Flora
       @config
     end
     
-    # return available RX channels and their demodulation cability
+    # return available RX channels and their demodulation capability
     #
     # @return [Array] 
     #    

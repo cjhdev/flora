@@ -41,7 +41,7 @@ module Flora
     end
     
     def eui
-      record[__method__].unpack("m")
+      @record[__method__].unpack("m")
     end
     
     # LNS format of acceptable datarates
@@ -60,6 +60,10 @@ module Flora
     end
     
     # LNS format
+    def region_code
+      @config.region_code
+    end
+    
     def region
       @config.region
     end

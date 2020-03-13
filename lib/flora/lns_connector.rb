@@ -15,7 +15,7 @@ module Flora
     
     MHDR = "MHdr"
     JOIN_EUI = "JoinEui"
-    DEV_EUI = "DevEUI"
+    DEV_EUI = "DevEui"
     DEV_NONCE = "DevNonce"
     MIC = "MIC"
     
@@ -26,6 +26,7 @@ module Flora
     RCTX = "rctx"
     XTIME = "xtime"
     GPSTIME = "gpstime"
+    DR = "DR"
 
     FEATURES = "features"
 
@@ -172,6 +173,8 @@ module Flora
             return
           end
           
+          pp obj
+          
           case obj[MSGTYPE]
           when VERSION
           
@@ -185,7 +188,7 @@ module Flora
                 msgtype:      ROUTER_CONFIG,
                 NetID:        [@net_id],
                 JoinEui:      gw.join_eui,
-                region:       gw.region,
+                region:       gw.region_code,
                 hwspec:       gw.hwspec,
                 freq_range:   gw.freq_range,
                 DRs:          gw.drs,
@@ -194,8 +197,6 @@ module Flora
                 nodc:         gw.nodc,
                 nodwell:      gw.nodwell
               }
-            
-            pp rsp
             
             msg = JSON.to_json(rsp)
             
@@ -213,18 +214,20 @@ module Flora
           
             # for reasons unknown LNS protocol decomposes the frame,
             # but we need it together in order to validate the MIC
-            bytes = [
-              obj[MHDR],
-              obj[JOIN_EUI],
-              obj[DEV_EUI],
-              obj[DEV_NONCE],
-              obj[MIC]
-            ].pack("CH*H*H*L<")
-          
+            bytes = OutputCodec.new.
+              put_u8(obj[MHDR]).
+              put_eui(Identifier.parse(obj[JOIN_EUI]).bytes).
+              put_eui(Identifier.parse(obj[DEV_EUI]).bytes).
+              put_u16(obj[DEV_NONCE]).
+              put_u32(obj[MIC]).
+                output
+              
             # this is reentrant
             frame = @decoder.decode(bytes)
             
             upinfo = obj[UPINFO]
+          
+            sf, bw = gw.region::RATE_TO_SF_BW[obj[DR]]
           
             yield(
               GatewayUpEvent.new(
@@ -238,7 +241,6 @@ module Flora
                 rssi: upinfo[RSSI],  
                 snr: upinfo[SNR],    
                 gw_channels: gw.rx_channels,      
-                gw_eui: gw.eui,
                 gw_param: {
                   rctx: upinfo[RCTX],
                   xtime: upinfo[XTIME],
@@ -255,18 +257,16 @@ module Flora
             # but we need it together in order to validate the MIC.
             # Also they don't decompose it completely, we still have to 
             # interpret FCTRL.
-            bytes = [
+            bytes = OutputCodec.new.
+              put_u8(obj[MHDR]).
+              put_u32(obj[DEV_ADDR]).
+              put_u8(obj[FCTRL]).
+              put_u16(obj[FCNT]).
+              put_bytes([obj[FOPTS]].pack("H*")).
+              put_bytes(payload).
+              put_u32(obj[MIC]).
+                output
             
-              obj[MHDR],
-              obj[DEV_ADDR],
-              obj[FCTRL],
-              obj[FCNT],
-              obj[FOPTS],
-              payload,
-              obj[MIC]
-              
-            ].pack("CL<CS<H*aL<")
-
             frame = @decoder.decode(bytes)
 
             if frame.nil?
@@ -276,10 +276,12 @@ module Flora
 
             upinfo = obj[UPINFO]
 
+            sf, bw = gw.region::RATE_TO_SF_BW[obj[DR]]
+
             yield(
               GatewayUpEvent.new(
                 gw_id: gw_id,
-                rx_time: time_now,
+                rx_time: ev.rx_time,
                 frame: frame,
                 data: bytes,
                 freq: obj[FREQ],
@@ -287,7 +289,7 @@ module Flora
                 bw: bw,
                 rssi: upinfo[RSSI],  
                 snr: upinfo[SNR],           
-                gw_channels: gw.rx_channels,
+                gw_channels: gw.rx_channels,                
                 gw_param: {
                   rctx: upinfo[RCTX],
                   xtime: upinfo[XTIME],
@@ -321,7 +323,7 @@ module Flora
           dC: 0,
           diid: next_token,
           pdu: event.data.bytes.map{|b|"%02X"%b}.join,
-          dev_eui: event.dev_eui.bytes.map{|b|"%02X"%b}.join,
+          DevEui: event.dev_eui.bytes.map{|b|"%02X"%b}.join("-"),
           RxDelay: event.rx_delay,
           RX1DR: event.rx_param.rx1.rate,
           RX1Freq: event.rx_param.rx1.freq,

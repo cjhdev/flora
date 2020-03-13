@@ -53,10 +53,12 @@ Flora::SX1301Config.create(
         if: 400000
       },
       chan_Lora_std: {
-        enable: false      
+        enable: false,
+        radio: 0
       },
       chan_FSK: {
-        enable: false      
+        enable: false,
+        radio: 0
       }
     }    
   ] 
