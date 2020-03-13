@@ -3,7 +3,7 @@ require 'logger'
 module Flora
 
   LOG_FORMATTER = Proc.new do |severity, datetime, progname, msg|
-    "#{severity.ljust(5)} [#{datetime.strftime("%Y-%m-%d %H:%M:%S")}] #{msg}\n"
+    "#{severity.ljust(5)} [#{datetime.strftime("%Y-%m-%d %H:%M:%S")}] #{progname}: #{msg}\n"
   end
 
   module LoggerMethods

@@ -96,7 +96,7 @@ module Flora
             time: event.rx_time.to_f,
             snr: event.snr, 
             rssi: event.rssi, 
-            id: event.id,
+            gw_id: event.gw_id,
             gw_param: event.gw_param.to_h          
           )
 
@@ -120,7 +120,7 @@ module Flora
             time: event.rx_time.to_f,
             snr: event.snr, 
             rssi: event.rssi, 
-            id: event.id,
+            gw_id: event.gw_id,
             gw_param: event.gw_param.to_h                          
         )
       
@@ -145,7 +145,7 @@ module Flora
       @record.delete(:data_up_frame)
       
       # take channels from this gateway
-      @record[:gw_channels] = event.gw_channels
+      @record[:join_gw_channels] = event.gw_channels
       
       clear_nwk_and_app_counter!
       clear_uplink_history!
@@ -189,9 +189,12 @@ module Flora
           yield(
             GatewayDownEvent.new(
               
+              gw_id: path[:gw_id],
               gw_param: path[:gw_param],
               
               data: response,
+              
+              dev_eui: dev_eui,
               
               rx_delay: plan.ja_delay,              
               rx_param: params              
@@ -213,7 +216,7 @@ module Flora
               gws: all_path.map do |rec|
                 rec.delete(:gw_param)
                 rec[:margin] = snr_margin(event.sf, event.snr)
-                rec[:id] = rec[:id].unpack("m").first
+                rec[:gw_id] = rec[:gw_id].unpack("m").first
                 rec
               end              
             )
@@ -287,7 +290,7 @@ module Flora
             time: event.rx_time.to_f,
             snr: event.snr, 
             rssi: event.rssi, 
-            id: event.id,
+            gw_id: event.gw_id,
             gw_param: event.gw_param.to_h                                              
           )
           
@@ -331,7 +334,7 @@ module Flora
         time: event.rx_time.to_f,
         snr: event.snr, 
         rssi: event.rssi, 
-        id: event.id,
+        gw_id: event.gw_id,
         gw_param: event.gw_param.to_h                                
       )
       
@@ -571,7 +574,8 @@ module Flora
 
             yield(
               GatewayDownEvent.new(
-                
+              
+                gw_id: path[:gw_id],
                 gw_param: path[:gw_param],
                 
                 data: output,
@@ -599,7 +603,7 @@ module Flora
               gws: all_path.map do |rec| 
                 rec.delete(:gw_param)
                 rec[:margin] = snr_margin(event.sf, event.snr)
-                rec[:id] = rec[:id].unpack("m").first
+                rec[:gw_id] = rec[:gw_id].unpack("m").first
                 rec
               end,
               sf: params.up.sf,
@@ -669,7 +673,7 @@ module Flora
           end
           
         end.
-        uniq!{|rec|rec[:id]}
+        uniq!{|rec|rec[:gw_id]}
       
       end
       

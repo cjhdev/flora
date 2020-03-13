@@ -47,7 +47,7 @@ describe "Device" do
       frame: join_frame,
       rssi: -50,
       snr: 9,
-      id: gw_eui,
+      gw_id: gw_eui,
       gw_param: {tmst: Time.now.to_i},
     )      
   end
@@ -107,7 +107,7 @@ describe "Device" do
         frame: data_frame,
         rssi: -50,
         snr: 9,
-        id: gw_eui,
+        gw_id: gw_eui,
         gw_param: {tmst: Time.now.to_i},
       )      
     end

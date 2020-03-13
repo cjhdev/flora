@@ -14,7 +14,7 @@ module Flora
     REJOIN = "rejoin"
     
     MHDR = "MHdr"
-    JOIN_EUI = "JoinEUI"
+    JOIN_EUI = "JoinEui"
     DEV_EUI = "DevEUI"
     DEV_NONCE = "DevNonce"
     MIC = "MIC"
@@ -59,6 +59,8 @@ module Flora
       @redis = opts[:redis]
       @gateway_manager = opts[:gw_manager]||GatewayManager.new(**opts)
       
+      @token = 0
+      
       @lns_id = "::0"
       @net_id = opts[:net_id]||0
       
@@ -81,11 +83,14 @@ module Flora
         begin
           obj = JSON.from_json(ev.msg, symbols: false) if ev.respond_to? :msg 
         rescue JSONError
+          log_debug{"couldn't parse message"}
           return
         end
       
         case ev
         when LNSInfoMessage
+        
+          log_debug{"handling info"}
         
           unless obj.kind_of? Hash
             ev.socket.message_and_close(JSON.to_json({error: "invalid message"}))
@@ -96,6 +101,8 @@ module Flora
             ev.socket.message_and_close(JSON.to_json({error: "invalid message"}))
             return
           end
+      
+          log_debug{"router-id: #{obj[ROUTER]}"}
         
           eui = Identifier.parse(obj[ROUTER])
       
@@ -103,17 +110,19 @@ module Flora
             ev.socket.message_and_close(JSON.to_json({error: "invalid router id format"}))
             return
           end
+          
+          gw_id = eui.to_b64
       
-          gw = @gateway_manager.lookup_by_eui(eui.bytes)
+          gw = @gateway_manager.lookup_by_eui(gw_id)
           
           response = nil
           
-          if gw and (ev.socket.auth_token == gw.auth_token)
+          if gw and (gw.auth_token.nil? or (ev.socket.auth_token == gw.auth_token))
           
             response = {
               router: eui.to_id6,
               muxs: lns_id,
-              uri: "router-#{eui.to_b64}"
+              uri: ev.socket.url.sub("info", gw_id)
             }
             
           else
@@ -129,11 +138,13 @@ module Flora
         
         when GatewayConnectEvent
         
-          name = ev.socket.name.unpack("m").first
+          log_debug{"handling session connect"}
         
-          gw = @gateway_manager.lookup_by_eui(name)
+          gw_id = ev.socket.name
         
-          if gw and (ev.socket.auth_token == gw.auth_token)
+          gw = @gateway_manager.lookup_by_eui(gw_id)
+        
+          if gw and (gw.auth_token.nil? or (ev.socket.auth_token == gw.auth_token))
           
             ev.socket.start_websocket              
           
@@ -145,9 +156,9 @@ module Flora
         
         when GatewayMessageEvent
 
-          name = ev.socket.name.unpack("m").first
+          gw_id = ev.socket.name
         
-          gw = @gateway_manager.lookup_by_eui(name)
+          gw = @gateway_manager.lookup_by_eui(gw_id)
           
           if gw.nil? or (ev.socket.auth_token != gw.auth_token)
           
@@ -170,23 +181,25 @@ module Flora
             #
             features = obj[FEATURES].to_s.split
             
-            ev.socket.message(
-              JSON.to_json(
-                {
-                  msgtype:      ROUTER_CONFIG,
-                  NetID:        [@net_id],
-                  JoinEUI:      gw.join_eui,
-                  region:       gw.region,
-                  hwspec:       gw.hwspec,
-                  freq_range:   gw.freq_range,
-                  DRs:          gw.drs,
-                  sx1301_conf:  gw.sx1301_conf,
-                  nocca:        gw.nocca,
-                  nodc:         gw.nodc,
-                  nodwell:      gw.nodwell
-                }
-              )
-            )
+            rsp = {
+                msgtype:      ROUTER_CONFIG,
+                NetID:        [@net_id],
+                JoinEui:      gw.join_eui,
+                region:       gw.region,
+                hwspec:       gw.hwspec,
+                freq_range:   gw.freq_range,
+                DRs:          gw.drs,
+                sx1301_conf:  gw.sx1301_conf,
+                nocca:        gw.nocca,
+                nodc:         gw.nodc,
+                nodwell:      gw.nodwell
+              }
+            
+            pp rsp
+            
+            msg = JSON.to_json(rsp)
+            
+            ev.socket.message(msg)
                 
           when DNTXED, PROPDF
           
@@ -215,7 +228,7 @@ module Flora
           
             yield(
               GatewayUpEvent.new(
-                id: [eui].pack("m0"),
+                gw_id: gw_id,
                 rx_time: ev.rx_time,
                 frame: frame,
                 data: bytes,
@@ -223,8 +236,9 @@ module Flora
                 sf: sf, 
                 bw: bw,
                 rssi: upinfo[RSSI],  
-                snr: upinfo[SNR],         
-                gw_channels: gw.rx_channels,                 
+                snr: upinfo[SNR],    
+                gw_channels: gw.rx_channels,      
+                gw_eui: gw.eui,
                 gw_param: {
                   rctx: upinfo[RCTX],
                   xtime: upinfo[XTIME],
@@ -264,7 +278,7 @@ module Flora
 
             yield(
               GatewayUpEvent.new(
-                id: [eui].pack("m0"),
+                gw_id: gw_id,
                 rx_time: time_now,
                 frame: frame,
                 data: bytes,
@@ -272,7 +286,8 @@ module Flora
                 sf: sf, 
                 bw: bw,
                 rssi: upinfo[RSSI],  
-                snr: upinfo[SNR],                          
+                snr: upinfo[SNR],           
+                gw_channels: gw.rx_channels,
                 gw_param: {
                   rctx: upinfo[RCTX],
                   xtime: upinfo[XTIME],
@@ -283,9 +298,8 @@ module Flora
           
           else
           
-            log_debug{"unknown message: closing socket"}
-            ev.socket.close()
-          
+            log_debug{"unknown message: #{obj[MSGTYPE]}"}
+            
           end
           
         end
@@ -296,12 +310,18 @@ module Flora
     
     def send_downstream(event)    
     
-      JSON.to_json(
+      socket = @server.lookup_socket(event.gw_id)
+    
+      log_debug{"cannot send down, socket for #{event.gw_id} does not exist"} unless socket    
+      return unless socket
+    
+      msg = JSON.to_json(
         {
           msgtype: DNMSG,
           dC: 0,
           diid: next_token,
           pdu: event.data.bytes.map{|b|"%02X"%b}.join,
+          dev_eui: event.dev_eui.bytes.map{|b|"%02X"%b}.join,
           RxDelay: event.rx_delay,
           RX1DR: event.rx_param.rx1.rate,
           RX1Freq: event.rx_param.rx1.freq,
@@ -312,6 +332,10 @@ module Flora
           rctx: event.gw_param[:rctx]      
         }
       )
+      
+      socket.message(msg)
+      
+      self
       
     end
     
@@ -367,6 +391,13 @@ module Flora
       @server.running?
     end
     
+    def next_token
+      value = @token
+      @token += 1
+      value
+    end
+
+
   end
 
 end

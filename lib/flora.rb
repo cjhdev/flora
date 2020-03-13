@@ -4,6 +4,7 @@ module Flora
 
 end
 
+require 'flora/id6'
 require 'flora/conversion'
 require 'flora/error'
 require 'flora/logger_methods'

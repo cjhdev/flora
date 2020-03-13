@@ -71,7 +71,6 @@ module Flora
     def gateway_connector(type, **opts)
       
       raise TypeError.new "connector type must be symbol" unless type.kind_of? Symbol
-      raise ArgumentError.new "connector '#{type}' not supported" unless type == :semtech
       
       @settings[:gateway_connector] = type
       @settings[:port] = opts[:port]||0

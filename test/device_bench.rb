@@ -29,7 +29,7 @@ describe "Device Benchmark" do
       bw: 125000,
       data: frame.encode,
       frame: frame,
-      id: gw_eui,
+      gw_id: gw_eui,
       gw_param: {tmst: Time.now.to_i},
     )      
   end

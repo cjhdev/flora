@@ -12,11 +12,7 @@ Compared to [other](#see-also) Network Server projects, Flora:
 - doesn't implement application interfaces (e.g. it doesn't fire webhooks or force you to use protobufs)
 
 Flora is useful in situations where you want a scriptable Network Server 
-without a bunch of other stuff. Flora currently depends on:
-
-- [nio4r](https://github.com/socketry/nio4r) (for reactor pattern sockets)
-- [websocket-driver](https://github.com/faye/websocket-driver-ruby) (for LNS gateway protocol)
-- redis (or [FakeRedis](https://github.com/guilleiguaran/fakeredis))
+without a bunch of other stuff. 
 
 [![Build Status](https://travis-ci.org/cjhdev/flora.svg?branch=master)](https://travis-ci.org/cjhdev/flora)
 
@@ -26,19 +22,19 @@ without a bunch of other stuff. Flora currently depends on:
 - OTAA
 - gateway to server protocol    
     - ["Semtech UDP Packet Forwarder" format](https://github.com/Lora-net/packet_forwarder)
-    - [LNS format](https://doc.sm.tc/station/tcproto.html) (recommended)
+    - [LNS format](https://doc.sm.tc/station/tcproto.html)
 - LoRaWAN 1.1 support
     - key derivation etc.
-    - Rekey command handling
-- plug-and-play channel plans
-    - devices are configured at join time according to the capability of the joining gateway
+    - rekey command handling
+    - optional end-to-end application data privacy
+- channel plans are derived from the gateway configuration
+    - devices are configured to work with the channel plan of the first gateway to receive the join request
 - ADR (as per LoRa Networks Rate Adaption document)
 - mac command handling
     - LinkCheckReq/Ans
     - RekeyInd/Conf
     - DeviceTimeReq/Ans
     - LinkADRReq/Ans  
-- end-to-end data privacy (LoRaWAN 1.1 mode only)
 
 ## Limitations
 
@@ -49,6 +45,7 @@ There are many since Flora is a work in progress.
 - no support for rejoin
 - retry confirmed data frames not handled correctly (server will drop duplicates)
 - no feature for scheduling server to do device management stuff
+- limited to single process
 
 The list goes on. Planned improvements are in [todo.md](todo.md).
         
@@ -87,38 +84,31 @@ server = Flora::Server.create do
        
   end
   
-  # optionally handle eui lookups that fail (during joining)
-  on_eui_missing do |ev, server|    
-  end
-  
-  # optionally handle dev_addr lookups that fail (during session)
-  on_dev_addr_missing do |ev, server|  
-  end
-  
 end
 
-# gateways must be registered
+# register a gateway
 server.create_gateway(
     eui: ("\x01" * 8),
     config: "sx1301_eu868_1",
     auth_token: "hello world"
 )
 
-eui_for_your_device = ("\x02" * 8)
-
-# create a fresh 1.0 device
+# register a 1.0 device
 server.create_device(
-    dev_eui: eui_for_your_device,
+    dev_eui: ("\x02" * 8),
     nwk_key: ("\x00" * 16),
     region: 'EU_863_870',
     minor: 0
 )
 
-# export a device record in format expected by #restore device
-exported_record = server.export_device(eui_for_your_device)
-
-# restore a previously exported device record
-server.restore_device(exported_record)
+# register a 1.1 device
+server.create_device(
+    dev_eui: ("\x03" * 8),
+    nwk_key: ("\x00" * 16),
+    app_key: ("\x00" * 16), # optional
+    region: 'EU_863_870',
+    minor: 1
+)
 
 server.start
 
@@ -160,8 +150,8 @@ Flora is easy to integrate with Rails/Sinatra as shown in this
 
 Duplicate messages are expected if a LoRaWAN device is within range of 
 multiple gateways. It is desirable for a LoRaWAN Network Server to receive
-all duplicates in order to work out which gateway should be used if a 
-response message is to be sent back to the device.
+all duplicates in order to work out which gateway should be used for 
+a reply message.
 
 With that in mind, the simplified diagram below shows the flow of 
 receiving an original frame, receiving duplicates, and finalisation 

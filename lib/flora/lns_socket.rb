@@ -20,6 +20,10 @@ module Flora
     INFO = "info"
     HTTP_AUTHORIZATION = "HTTP_AUTHORIZATION"
     
+    def url
+      driver.url
+    end
+    
     def initialize(server, socket, **opts)
       
       @logger = opts[:logger]||NULL_LOGGER
@@ -53,7 +57,9 @@ module Flora
         @auth_token = driver.env[HTTP_AUTHORIZATION]
         
         if name == INFO
-      
+        
+          log_info{"info connect"}
+          
           driver.start
       
         else
@@ -117,7 +123,7 @@ module Flora
         end
       rescue IO::WaitReadable
       rescue EOFError, IOError => e
-        log_debug { "#{e}: #{e.backtrace.join("\n")}" }
+        log_debug { "#{e}" }
         close()
       rescue => e
         log_error { "#{e}: #{e.backtrace.join("\n")}" }

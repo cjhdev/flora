@@ -59,6 +59,7 @@ module Flora
       @logger = opts[:logger]||NULL_LOGGER
       @num_workers = opts[:num_gw_workers]||1
       @redis = opts[:redis]
+      @gateway_manager = opts[:gw_manager]||GatewayManager.new(**opts)
     
       @token = rand(0..(2**16-1))
       @socket = nil
@@ -82,7 +83,7 @@ module Flora
             obj = nil
             
             version, token, type = input.slice!(0,4).unpack("CS>C")
-            eui = [input.slice!(0,8)].pack("m0")
+            gw_id = [input.slice!(0,8)].pack("m0")
             
             if version != P_VERSION
               log_debug{"unexpected version"}
@@ -100,6 +101,13 @@ module Flora
               
             end
             
+            gw = @gateway_manager.lookup_by_eui(gw_id)
+          
+            unless gw
+              log_debug{"gateway id #{gw_id} is unknown"}
+              return
+            end
+  
             case type   
             when PUSH_DATA
             
@@ -142,7 +150,7 @@ module Flora
                   next
                 end
 
-                return_addr = restore_gateway(eui)
+                return_addr = restore_gateway(gw_id)
 
                 if return_addr.nil?
                   return_addr = {
@@ -153,6 +161,7 @@ module Flora
 
                 yield(
                   GatewayUpEvent.new(
+                    gw_id: gw_id,
                     rx_time: time_now,
                     frame: frame,
                     data: data,
@@ -160,8 +169,8 @@ module Flora
                     sf: sf, 
                     bw: bw,
                     rssi: pk[RSSI],  
-                    snr: pk[LSNR],  
-                    id: eui,                
+                    snr: pk[LSNR],                      
+                    gw_channels: gw.rx_channels,                      
                     gw_param: {
                       tmst: pk[TMST].to_i,
                       addr: return_addr[:addr],
@@ -174,7 +183,7 @@ module Flora
                      
             when PULL_DATA
               
-              save_gateway(eui, sender[3], sender[1])
+              save_gateway(gw_id, sender[3], sender[1])
               
               log_debug{"responding with PullAck"}
               send_msg([version, token, PULL_ACK].pack("CS>C"), sender[3], sender[1])

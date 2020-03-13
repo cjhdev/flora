@@ -14,11 +14,11 @@ module Flora
     
     end
     
+    # @param eui [String] base64 encoded
+    # @return [Gateway,nil]
     def lookup_by_eui(eui)
     
-      name = [eui].pack("m0")
-      
-      if record = redis.get(rk_gw_eui(name))
+      if record = redis.get(rk_gw_eui(eui))
       
         Gateway.new(record: JSON.from_json(record), logger: logger, redis: redis)
       

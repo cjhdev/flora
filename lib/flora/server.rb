@@ -71,7 +71,7 @@ module Flora
         
       when :lns
       
-        #@gw = LNSConnector.new(**opts.merge({gw_manager: @gw_manager})) { |event| process_event(event) }
+        @gw = LNSConnector.new(**opts.merge({gw_manager: @gw_manager})) { |event| process_event(event) }
         
       else
       
@@ -140,15 +140,15 @@ module Flora
       @dm.export_device(dev_eui, **opts)
     end
     
-    def get_device(dev_eui)
-      @dm.lookup_by_eui(dev_eui)
-    end
-    
     # Remove a device from the server
     #
     # @param dev_eui [String] unique 8 byte string
     def remove_device(dev_eui)
       @dm.destroy(dev_eui)
+    end
+    
+    def create_gateway(**args)
+      @gm.create_gateway(**args)        
     end
 
     def process_event(event)

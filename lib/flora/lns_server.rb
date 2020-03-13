@@ -13,6 +13,10 @@ module Flora
       server.addr[1] if server
     end
     
+    def lookup_socket(gw_id)
+      @connections.detect{|conn|conn.name == gw_id}
+    end
+      
     def initialize(**opts, &handler)
       
       @host = opts[:host]||'localhost'

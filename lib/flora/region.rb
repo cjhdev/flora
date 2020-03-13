@@ -9,8 +9,6 @@ module Flora
 
     @@subs = []
 
-    attr_reader :channels
-
     def self.inherited(klass)
       if self == Region
         @@subs << klass      

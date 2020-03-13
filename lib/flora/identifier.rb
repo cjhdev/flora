@@ -35,14 +35,14 @@ module Flora
       end
     end
     
-    def self.from_id6(input)
+    def self.from_id6(input)    
       begin
-        self.new(
-          IPAddr.new(input).hton.slice(0,8)      
-        )
+        if value = ID6.decode(input)
+          self.new(value.value)
+        end      
       rescue
         nil
-      end
+      end      
     end
     
     def self.from_int(input)
@@ -60,7 +60,7 @@ module Flora
     end
     
     def to_id6    
-      IPAddr.new_ntoh(ZERO + @value).to_s    
+      ID6.new(@value).to_s
     end
     
     def to_i

@@ -26,7 +26,7 @@ describe "LNSConnector" do
     socket.open 
   end
 
-  describe "discovery" do
+  describe "info" do
     
     let(:socket){ WebSocketClient.new("wss://localhost:#{port}/router-info", token: client_token) }
     
@@ -177,6 +177,7 @@ describe "LNSConnector" do
       
       sleep 0.1
       
+      # socket remains open
       refute socket.closed?
     
     end
