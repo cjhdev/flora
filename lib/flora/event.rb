@@ -14,7 +14,6 @@ module Flora
   # @attr [Integer] freq        frequency (Hz)
   # @attr [Integer] bw          bandwidth (Hz)
   # @attr [Integer] sf          spreading factor
-  # @attr [Integer] rate        sf+bw converted to rate according to region
   # @attr [Array<Hash>] gws     array of meta data from each gateway that received the message
   #
   # gateway meta data hash:
@@ -24,7 +23,7 @@ module Flora
   # @option gw [String] :snr
   # @option gw [String] :margin
   # 
-  ActivationEvent = Struct.new(:dev_eui, :join_eui, :rx_time, :dev_addr, :dev_nonce, :join_nonce, :freq, :gws, :sf, :bw, :rate, keyword_init: true)
+  ActivationEvent = Struct.new(:dev_eui, :join_eui, :rx_time, :dev_addr, :dev_nonce, :join_nonce, :freq, :gws, :sf, :bw, keyword_init: true)
   
   # Sent to application to pass upstream data
   #
@@ -54,7 +53,7 @@ module Flora
   # @option gw [String] :snr
   # @option gw [String] :margin
   #   
-  DataUpEvent = Struct.new(:dev_eui, :rx_time, :data, :fport, :dev_addr, :confirmed, :counter, :battery, :device_margin, :freq, :gws, :sf, :bw, :rate, :adr, :adr_ack_req, :encrypted, :mac_commands, keyword_init: true)
+  DataUpEvent = Struct.new(:dev_eui, :rx_time, :data, :fport, :dev_addr, :confirmed, :counter, :battery, :device_margin, :freq, :gws, :sf, :bw, :adr, :adr_ack_req, :encrypted, :mac_commands, keyword_init: true)
   
   # Sent to application to indicate device record has changed
   #

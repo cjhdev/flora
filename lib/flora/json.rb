@@ -16,9 +16,9 @@ module Flora
       def self.from_json(input, opts=JSON_OPTS)
         begin        
           if opts[:symbols] == false
-            Oj.load(input, max_nesting: 3)
+            Oj.load(input, max_nesting: 4)
           else
-            Oj.load(input, symbol_keys: true, max_nesting: 3)            
+            Oj.load(input, symbol_keys: true, max_nesting: 4)            
           end          
         rescue => e
           raise JSONError.new(e)
@@ -36,9 +36,9 @@ module Flora
       def self.from_json(input, opts=JSON_OPTS)
         begin
           if opts[:symbols] == false
-            ::JSON.parse(input, max_nesting: 3)
+            ::JSON.parse(input, max_nesting: 4)
           else
-            ::JSON.parse(input, symbolize_names: true, max_nesting: 3)            
+            ::JSON.parse(input, symbolize_names: true, max_nesting:4)            
           end
         rescue => e
           raise JSONError.new(e)

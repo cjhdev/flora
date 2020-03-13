@@ -580,6 +580,8 @@ module Flora
                 
                 data: output,
                 
+                dev_eui: dev_eui,
+                
                 rx_delay: plan.ja_delay,                  
                 rx_param: params                
               )
