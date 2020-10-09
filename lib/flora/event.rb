@@ -10,6 +10,7 @@ module Flora
   # @attr [Time]    rx_time     time frame was received
   # @attr [Integer] dev_addr    device address
   # @attr [Integer] dev_nonce   device nonce
+  # @attr [Integer] rate        data rate (from regionm, bw, and sf)
   # @attr [Integer] join_nonce   join nonce
   # @attr [Integer] freq        frequency (Hz)
   # @attr [Integer] bw          bandwidth (Hz)
@@ -23,7 +24,7 @@ module Flora
   # @option gw [String] :snr
   # @option gw [String] :margin
   # 
-  ActivationEvent = Struct.new(:dev_eui, :join_eui, :rx_time, :dev_addr, :dev_nonce, :join_nonce, :freq, :gws, :sf, :bw, keyword_init: true)
+  ActivationEvent = Struct.new(:dev_eui, :join_eui, :rx_time, :dev_addr, :dev_nonce, :join_nonce, :rate, :freq, :gws, :sf, :bw, keyword_init: true)
   
   # Sent to application to pass upstream data
   #

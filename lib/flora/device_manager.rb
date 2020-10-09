@@ -75,20 +75,16 @@ module Flora
       
     end
     
-    # Load an existing device record
-    #
-    # If the device already exists it will be replaced. 
-    #
-    # @param exported [Hash] #export_device export format
-    # @param opts [Hash]
-    # 
-    # @return [Device]
-    #
-    # @raise [RestoreDeviceError]
-    #
+    # @see Server::restore_device
     def restore_device(exported, opts=OPTS)
     
-      raise RestoreDeviceError.new "exported must be a Hash" unless exported.kind_of? Hash
+      begin
+        exported = JSON.from_json(exported, symbols: false)
+      rescue
+        raise RestoreDeviceError.new "exported is not valid JSON"
+      end
+    
+      raise RestoreDeviceError.new "exported must be an object" unless exported.kind_of? Hash
       raise RestoreDeviceError.new "exported:version is invalid" unless exported['version'].kind_of? Integer
       raise RestoreDeviceError.new "exported:fields is invalid" unless exported['fields'].kind_of? Hash
       
@@ -221,14 +217,7 @@ module Flora
       
     end
     
-    # Export a device record in a format which can later be used with #restore_device
-    #
-    # @param dev_eui [String]   unique 8 byte identifier
-    # @return [Hash]            export format
-    #
-    # @raise [ExportDeviceError]
-    # @raise [JSONError]
-    #
+    # @see Server::export_device
     def export_device(dev_eui, opts=OPTS)
       
       raise ExportDeviceError.new "dev_eui must be an 8 byte string" unless dev_eui.kind_of? String and dev_eui.size == 8
@@ -243,48 +232,26 @@ module Flora
       
       raise ExportDeviceError.new "dev_eui #{bytes_to_hex(dev_eui)} does not exist" unless record
       
-      record = JSON.from_json(record, symbols: false)
+      record = JSON.from_json(record)
       
-      record.delete('join_request_frame')
-      record.delete('data_frame')
+      record.delete(:join_request_frame)
+      record.delete(:data_frame)
       
-      {
-        "version" => 0,
-        "exported_at" => Time.now,
-        "fields" => {
-          "record" => record,
-          "nwk_counter" => nwk_counter.to_i,
-          "app_counter" => app_counter.to_i
+      JSON.to_json(
+        {
+          version: 0,
+          exported_at: Time.now,
+          fields: {
+            record: record,
+            nwk_counter: nwk_counter.to_i,
+            app_counter: app_counter.to_i
+          }
         }
-      }
+      )
       
     end
     
-    # Create a new device
-    #
-    # @param args [Hash]
-    #
-    # @option args [String] :dev_eui          unique 8 byte identifier
-    # @option args [Integer] :dev_addr        unique 24 bit integer
-    # @option args [String] :nwk_key          16 byte string
-    #
-    # @option args [String,nil] :app_key      OPTIONAL 16 byte string which when absent enables end-to-end application encryption
-    # @option args [Integer,nil] :minor       OPTIONAL LoRaWAN minor version number (0 or 1) (defaults to 0)
-    # @option args [Integer,nil] :join_nonce  OPTIONAL insert a non-default join_nonce
-    #
-    # @option args [String] :region           the region this device implements
-    #
-    # @option args [Integer,nil] :rx_delay        OPTIONAL
-    # @option args [Integer,nil] :rx1_dr_offset   OPTIONAL
-    # @option args [Integer,nil] :rx2_dr          OPTIONAL
-    # @option args [Integer,nil] :rx2_freq        OPTIONAL
-    # @option args [Integer,nil] :adr_ack_limit   OPTIONAL
-    # @option args [Integer,nil] :adr_ack_delay   OPTIONAL
-    #
-    # @return [Device]
-    #
-    # @raise [CreateDeviceError]
-    #
+    # @see Server::create_device
     def create_device(args=OPTS)
       
       dev_eui = args[:dev_eui]
@@ -404,20 +371,7 @@ module Flora
     
     end
     
-    # Remove a device
-    #
-    # All of the redis keys except the dev_addr mapping are
-    # derived from the dev_eui. Normally dev_addr can be derived from
-    # dev_eui, but if a dev_addr mapping has been somehow orphaned, it
-    # can be removed by passing an explicit opts:dev_addr.
-    #
-    # @param dev_eui [String] unique 8 byte device identifier
-    # @param opts [Hash]
-    # 
-    # @option opts [Integer] :dev_addr scrub this dev_addr mapping as well
-    #
-    # @return [self]
-    #
+    # @see Server#destroy_device
     def destroy_device(dev_eui, opts=OPTS)
       
       name = [dev_eui].pack("m0")

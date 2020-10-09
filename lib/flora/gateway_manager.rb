@@ -18,7 +18,7 @@ module Flora
     # @return [Gateway,nil]
     def lookup_by_eui(eui)
     
-      if record = redis.get(rk_gw_eui(eui))
+      if record = redis.get(rk_gw_lookup(eui))
       
         Gateway.new(record: JSON.from_json(record), logger: logger, redis: redis)
       
@@ -31,18 +31,20 @@ module Flora
       config = SX1301Config.by_name(args[:config])
       
       raise CreateGatewayError.new "gw_config: #{args[:config]} is unknown" unless config
-    
+      
+      raise CreateGatewayError.new "gw_config:eui must be defined" unless args[:eui] 
+      
       name = [args[:eui]].pack("m0")
-    
+      
       record = {
         
         eui: name,
         config: args[:config],
-        auth_token: args[:token]        
+        auth_token: args[:auth_token]        
 
       }.compact
     
-      redis.set(rk_gw_eui(name), JSON.to_json(record))
+      redis.set(rk_gw_lookup(name), JSON.to_json(record))
       
       Gateway.new(record: record)
 

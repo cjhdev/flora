@@ -5,9 +5,11 @@ module Flora
   
   LNSInfoConnect = Struct.new(:rx_time, :socket, keyword_init: true)
   LNSInfoMessage = Struct.new(:rx_time, :msg, :socket, keyword_init: true)
+  LNSInfoClose = Struct.new(:rx_time, :msg, :socket, keyword_init: true)
   
-  GatewayConnectEvent = Struct.new(:rx_time, :socket, keyword_init: true)  
-  GatewayMessageEvent = Struct.new(:rx_time, :msg, :socket, keyword_init: true)
+  LNSRouterConnect = Struct.new(:rx_time, :socket, keyword_init: true)  
+  LNSRouterMessage = Struct.new(:rx_time, :msg, :socket, keyword_init: true)
+  LNSRouterClose = Struct.new(:rx_time, :msg, :socket, keyword_init: true)
   
   class LNSSocket
     
@@ -40,14 +42,14 @@ module Flora
       driver.on :connect, -> (ev) do
         
         if not WebSocket::Driver.websocket?(driver.env) 
-          close_socket()
+          http_response(400) # bad request
           return
         end
         
         match = PATH_PATTERN.match(driver.env[PATH_INFO])
         
         if match.nil?
-          close_socket()
+          http_response(404) # not found
           return
         end
         
@@ -122,7 +124,10 @@ module Flora
           driver.parse(data)
         end
       rescue IO::WaitReadable
-      rescue EOFError, IOError => e
+      rescue EOFError => e
+        log_debug { "#{name} disconnected" }
+        close()
+      rescue IOError => e
         log_debug { "#{e}" }
         close()
       rescue => e
@@ -153,7 +158,7 @@ module Flora
     end
     
     # called by worker
-    def message_and_close(msg)
+    def message_and_close(msg, code=1000)
       with_mutex do
         driver.text(msg)
         close_socket unless driver.close
@@ -161,9 +166,15 @@ module Flora
     end
     
     # called by worker and reactor
-    def close
+    def close(code=1000)
       with_mutex do
-        close_socket unless driver.close        
+        close_socket unless driver.close
+      end
+    end
+    
+    def halt(code)
+      with_mutex do
+        http_response(code)      
       end
     end
     
@@ -184,6 +195,11 @@ module Flora
       # close TCP socket and deregister monitor
       def close_socket
         server.close_connection(self)
+      end
+      
+      def http_response(code)
+        socket.write("HTTP/1.1 #{code}\r\n")
+        close_socket
       end
      
   end

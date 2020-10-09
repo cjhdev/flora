@@ -102,7 +102,7 @@ module Flora
       @rx2_dr = rx2_dr      
       @cflist = cflist
       @mic = mic
-      
+
       raise ArgumentError.new "cflist must be 0 or 16 bytes long" unless (cflist.size == 0 or cflist.size == 16)
       
     end

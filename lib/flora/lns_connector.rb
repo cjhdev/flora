@@ -88,10 +88,10 @@ module Flora
           return
         end
       
+        log_debug{"received #{ev.msg}"} if ev.respond_to? :msg
+      
         case ev
         when LNSInfoMessage
-        
-          log_debug{"handling info"}
         
           unless obj.kind_of? Hash
             ev.socket.message_and_close(JSON.to_json({error: "invalid message"}))
@@ -103,8 +103,6 @@ module Flora
             return
           end
       
-          log_debug{"router-id: #{obj[ROUTER]}"}
-        
           eui = Identifier.parse(obj[ROUTER])
       
           if eui.nil?
@@ -118,16 +116,34 @@ module Flora
           
           response = nil
           
-          if gw and (gw.auth_token.nil? or (ev.socket.auth_token == gw.auth_token))
+          if gw
           
-            response = {
-              router: eui.to_id6,
-              muxs: lns_id,
-              uri: ev.socket.url.sub("info", gw_id)
-            }
+            if gw.auth_token.nil? or (ev.socket.auth_token == gw.auth_token)
+            
+              log_debug{"#{ev.socket.url} (#{obj[ROUTER]}) OK"}
+            
+              response = {
+                router: eui.to_id6,
+                muxs: lns_id,
+                uri: ev.socket.url.sub("info", gw_id)
+              }
+              
+            else
+            
+              log_debug{"#{ev.socket.url} (#{obj[ROUTER]}) authentication failure"}
+            
+              response = {
+                router: eui.to_id6,
+                error: "authentication failure"
+              }
+            
+            end
             
           else
-          
+            
+            log_debug{"#{ev.socket.url} (#{obj[ROUTER]}) unknown router"}
+            
+            # don't leak information?
             response = {
               router: eui.to_id6,
               error: "authentication failure"
@@ -137,7 +153,11 @@ module Flora
           
           ev.socket.message_and_close(JSON.to_json(response))
         
-        when GatewayConnectEvent
+        when LNSInfoClose
+        
+          
+        
+        when LNSRouterConnect
         
           log_debug{"handling session connect"}
         
@@ -145,17 +165,27 @@ module Flora
         
           gw = @gateway_manager.lookup_by_eui(gw_id)
         
-          if gw and (gw.auth_token.nil? or (ev.socket.auth_token == gw.auth_token))
+          if gw
           
-            ev.socket.start_websocket              
+            if (gw.auth_token.nil? or (ev.socket.auth_token == gw.auth_token))
+            
+              ev.socket.start_websocket              
+              
+              @redis.set(rk_gw_status(JSON.to_json({gw_id: gw_id, connect_time: ev.rx_time.to_f, update_time: ev.rx_time.to_f})))
+            
+            else
+            
+              ev.socket.halt(500)
+            
+            end
           
           else
           
-            ev.socket.close
-            
+            ev.socket.halt(404)
+          
           end
         
-        when GatewayMessageEvent
+        when LNSRouterMessage
 
           gw_id = ev.socket.name
         
@@ -163,17 +193,26 @@ module Flora
           
           if gw.nil? or (ev.socket.auth_token != gw.auth_token)
           
+            log_debug{"cancel connection"}          
             ev.socket.close
             return
             
           end
 
+          @redis.set(rk_gw_status(gw_id),
+            JSON.to_json(
+              {
+                gw_id: gw_id, 
+                connect_time: ev.rx_time.to_f, 
+                update_time: ev.rx_time.to_f
+              }
+            )
+          )
+
           unless obj.kind_of? Hash
             ev.socket.message_and_close(JSON.to_json({error: "invalid message"}))
             return
           end
-          
-          pp obj
           
           case obj[MSGTYPE]
           when VERSION
@@ -303,6 +342,16 @@ module Flora
             log_debug{"unknown message: #{obj[MSGTYPE]}"}
             
           end
+          
+        when LNSRouterClose
+          
+          gw_id = ev.socket.name
+          
+          @redis.del(rk_gw_status(gw_id))
+        
+        else
+        
+          log_error{"unhandled event #{ev.class}"}
           
         end
         

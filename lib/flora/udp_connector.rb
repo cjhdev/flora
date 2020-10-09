@@ -18,7 +18,7 @@ module Flora
     DATA = "data"
     RXPK = "rxpk"
     DATR = "datr"
-    
+
     PUSH_DATA = 0
     PUSH_ACK = 1
     PULL_DATA = 2
@@ -26,7 +26,7 @@ module Flora
     PULL_ACK = 4
     TX_ACK = 5
     P_VERSION = 2
-    
+
     TYPE_TO_NAME = {
       PUSH_DATA => "PushData",
       PUSH_ACK => "PushAck",
@@ -35,109 +35,109 @@ module Flora
       PULL_ACK => "PullAck",
       TX_ACK => "TXAck"
     }
-    
+
     DATR_TO_SF_BW = [125000, 250000, 500000].inject({}) do |result, bw|
-    
+
       (6..12).to_a.each do |sf|
-      
+
         result["SF#{sf}BW#{bw/1000}"] = [sf, bw]
-      
+
       end
-    
+
       result
-    
+
     end
-      
+
     def datr_to_sf_bw(datr)
       DATR_TO_SF_BW[datr]
-    end    
-    
+    end
+
     def initialize(**opts)
-    
+
       @host = opts[:host]||'localhost'
       @port = opts[:port]||0
       @logger = opts[:logger]||NULL_LOGGER
       @num_workers = opts[:num_gw_workers]||1
       @redis = opts[:redis]
       @gateway_manager = opts[:gw_manager]||GatewayManager.new(**opts)
-    
+
       @token = rand(0..(2**16-1))
       @socket = nil
-      @running = false      
+      @running = false
       @worker = []
       @app = Proc.new do
-      
+
         begin
-      
+
           loop do
-            
+
             input, sender = @socket.recvfrom(1024, 0)
 
             time_now = Time.now
-          
+
             if input.size < 12
               log_debug{"input too short"}
               next
             end
-          
+
             obj = nil
-            
+
             version, token, type = input.slice!(0,4).unpack("CS>C")
             gw_id = [input.slice!(0,8)].pack("m0")
-            
+
             if version != P_VERSION
               log_debug{"unexpected version"}
               next
             end
-            
+
             if name = TYPE_TO_NAME[type]
-            
+
               log_debug{"received #{name}"}
-              
+
             else
-            
+
               log_debug{"received unknown message type #{type}"}
               next
-              
+
             end
-            
+
             gw = @gateway_manager.lookup_by_eui(gw_id)
-          
+
             unless gw
               log_debug{"gateway id #{gw_id} is unknown"}
               return
             end
-  
-            case type   
+
+            case type
             when PUSH_DATA
-            
-              begin            
-                obj = JSON.from_json(input, symbols: false)                      
+
+              begin
+                obj = JSON.from_json(input, symbols: false)
               rescue JSONError => ex
                 log_debug{"JSON parsing error: #{ex}"}
                 next
               end
-              
+
               log_debug{"responding with PushAck"}
               send_msg([version, token, PUSH_ACK].pack("CS>C"), sender[3], sender[1])
-              
+
               if not obj.kind_of? Hash
                 log_debug{"invalid format"}
               end
-              
+
               next unless obj[RXPK].kind_of? Array
-              
+
               obj[RXPK].each do |pk|
 
                 if pk[RXPK] == -1
                   log_debug{"discarding bad CRC"}
                   next
                 end
-                
+
                 data = pk[DATA].unpack("m").first
-                  
+
                 frame = FrameDecoder.new(logger: @logger).decode(data)
-                
+
                 if frame.nil?
                   log_debug{"invalid LoRaWAN frame"}
                   next
@@ -166,11 +166,11 @@ module Flora
                     frame: frame,
                     data: data,
                     freq: (pk[FREQ] * 1000000).to_i,
-                    sf: sf, 
+                    sf: sf,
                     bw: bw,
-                    rssi: pk[RSSI],  
-                    snr: pk[LSNR],                      
-                    gw_channels: gw.rx_channels,                      
+                    rssi: pk[RSSI],
+                    snr: pk[LSNR],
+                    gw_channels: gw.rx_channels,
                     gw_param: {
                       tmst: pk[TMST].to_i,
                       addr: return_addr[:addr],
@@ -178,35 +178,35 @@ module Flora
                     }
                   )
                 )
-                
+
               end
-                     
+
             when PULL_DATA
-              
+
               save_gateway(gw_id, sender[3], sender[1])
-              
+
               log_debug{"responding with PullAck"}
               send_msg([version, token, PULL_ACK].pack("CS>C"), sender[3], sender[1])
-            
+
             end
-            
+
           end
-         
+
         # socket was closed
         rescue IOError
         # something else
         rescue => e
           log_error{"caught exception: #{e}: #{e.backtrace.join('\n')}"}
         end
-        
+
         @running = false
-      
+
       end
-      
+
     end
-        
+
     def send_downstream(event)
-      
+
       obj = JSON.to_json(
         {
           txpk: {
@@ -222,63 +222,63 @@ module Flora
             data: [event.data].pack("m0"),
             ipol: true
           }
-        } 
+        }
       )
-    
+
       log_debug{"sending PullResp: #{obj}"}
-    
+
       send_msg(
-        [P_VERSION, next_token, PULL_RESP].pack("CS>C").concat(obj),        
+        [P_VERSION, next_token, PULL_RESP].pack("CS>C").concat(obj),
         event.gw_param[:addr],
         event.gw_param[:port]
       )
-      
+
       self
-      
+
     end
-    
+
     def running?
       @running
     end
-    
+
     def send_msg(msg, addr, port)
       raise "not running" unless @running
       @socket.send(msg, 0, addr, port)
       self
     end
-    
+
     def stop
       if @running
-        @socket.close 
+        @socket.close
         @worker.each(&:join)
         @worker.clear
       end
       self
     end
-    
+
     def start
       if not @running
-    
+
         @socket = UDPSocket.new
         @socket.bind(@host, @port)
-        
+
         @worker = Array.new(@num_workers) do
           Thread.new do
             @app.call
           end
         end
-        
+
         @running = true
-          
+
       end
       self
     end
-    
+
     def restart
       stop
       start
     end
-    
+
     def port
       if @running
         @socket.addr[1]
@@ -286,12 +286,12 @@ module Flora
         nil
       end
     end
-    
+
     def save_gateway(eui, addr, port)
       @redis.set(gw_dl_addr(eui), JSON.to_json({addr: addr, port: port}))
       self
     end
-    
+
     def restore_gateway(eui)
       if record = @redis.get(gw_dl_addr(eui))
         JSON.from_json(record)
@@ -299,9 +299,9 @@ module Flora
         nil
       end
     end
-    
+
     private :send_msg, :datr_to_sf_bw, :save_gateway, :restore_gateway
-    
+
   end
 
 end

@@ -13,7 +13,10 @@ module Flora
     UP_HISTORY  = 'UP_HIST:'.freeze
     ADR_SETTING = 'ADR_SETTING:'.freeze
     GW_DL_ADDR = 'GW_DL_ADDR:'.freeze
-    GW_EUI     = 'GW_EUI:'.freeze
+    
+    GW_LOOKUP   = 'GW_LOOKUP:'.freeze
+    GW_STATUS   = 'GW_STATUS:'.freeze
+    GW_DOWNLINK = 'GW_DOWNLINK:'.freeze
   
     def rk_eui(name)
       EUI + name
@@ -59,8 +62,16 @@ module Flora
       GW_DL_ADDR + eui
     end
     
-    def rk_gw_eui(eui)
-      GW_EUI + eui
+    def rk_gw_lookup(eui)
+      GW_LOOKUP + eui
+    end
+    
+    def rk_gw_status(eui)
+      GW_GW_STATUS + eui
+    end
+    
+    def rk_gw_downlink(eui)
+      GW_GW_DOWNLINK + eui
     end
     
   end
