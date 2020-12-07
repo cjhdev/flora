@@ -17,10 +17,11 @@ Gem::Specification.new do |s|
   s.add_development_dependency 'rake'
   s.add_development_dependency 'minitest'        
   s.add_development_dependency 'fakeredis'      
-  s.add_development_dependency 'redis'      
+     
   
   s.add_runtime_dependency 'nio4r'
   s.add_runtime_dependency 'websocket-driver'
+  s.add_runtime_dependency 'redis', "4.1.3"   
   
   s.required_ruby_version = '>= 2.0'
   

@@ -317,9 +317,9 @@ module Flora
 
       else
 
-        if ready_at?(event.rx_time)
+        unless ready_at?(event.rx_time)
 
-          log_debug{"frame_rejected: data received too soon after previous join request frame"}
+          log_debug{"frame_rejected: data received too soon after previous join request frame (#{event.rx_time})"}
           return
 
         end
