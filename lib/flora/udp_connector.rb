@@ -159,25 +159,30 @@ module Flora
                   }
                 end
 
-                yield(
-                  GatewayUpEvent.new(
-                    gw_id: gw_id,
-                    rx_time: time_now,
-                    frame: frame,
-                    data: data,
-                    freq: (pk[FREQ] * 1000000).to_i,
-                    sf: sf,
-                    bw: bw,
-                    rssi: pk[RSSI],
-                    snr: pk[LSNR],
-                    gw_channels: gw.rx_channels,
-                    gw_param: {
-                      tmst: pk[TMST].to_i,
-                      addr: return_addr[:addr],
-                      port: return_addr[:port]
-                    }
+                begin
+
+                  yield(
+                    GatewayUpEvent.new(
+                      gw_id: gw_id,
+                      rx_time: time_now,
+                      frame: frame,
+                      data: data,
+                      freq: (pk[FREQ] * 1000000).to_i,
+                      sf: sf,
+                      bw: bw,
+                      rssi: pk[RSSI],
+                      snr: pk[LSNR],
+                      gw_channels: gw.rx_channels,
+                      gw_param: {
+                        tmst: pk[TMST].to_i,
+                        addr: return_addr[:addr],
+                        port: return_addr[:port]
+                      }
+                    )
                   )
-                )
+                rescue => e
+                  log_error{"caught exception: #{e}:\n#{e.backtrace.join("\n")}"}
+                end
 
               end
 
@@ -196,7 +201,7 @@ module Flora
         rescue IOError
         # something else
         rescue => e
-          log_error{"caught exception: #{e}: #{e.backtrace.join('\n')}"}
+          log_error{"caught exception: #{e}:\n#{e.backtrace.join("\n")}"}
         end
 
         @running = false

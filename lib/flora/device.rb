@@ -239,18 +239,18 @@ module Flora
 
     def process_data_up(event)
 
+      if not joined?
+
+        log_debug{"frame_rejected: device not joined"}
+        return
+
+      end
+
       params = plan.exchange_params(event.freq, event.sf, event.bw)
 
       if params.nil?
 
         log_debug{"frame_rejected: freq, sf, or bw not valid for channel plan"}
-        return
-
-      end
-
-      if not joined?
-
-        log_debug{"frame_rejected: device not joined"}
         return
 
       end
