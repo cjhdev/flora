@@ -200,67 +200,72 @@ module Flora
         case event.frame
         when JoinRequest
 
-          device = dm.lookup_by_eui(event.frame.dev_eui)
-
-          if device.nil? and @on_eui_missing
-
-            device = @on_eui_missing.call(event, self)
-
-            raise ArgumentError.new "on_eui_missing must return nil or an instance of Device" unless device.nil? or device.kind_of? Device
-
-          end
-
-          if device
-
-            device.process_join_request(event) do |response|
-
-              case response
-              when GatewayDownEvent
-
-                gw.send_downstream(response)
-
-              when ActivationEvent, DeviceUpdateEvent
-
-                @on_event.call(response, self) if @on_event
-
-              end
-
-            end
-
-          end
+          process_event_join(event)
 
         when RejoinRequest
-
           # do nothing for now
-
         when DataUnconfirmedUp, DataConfirmedUp
 
-          device = dm.lookup_by_addr(event.frame.dev_addr)
+          process_event_data(event)
 
-          if device.nil? and @on_dev_addr_missing
+        end
 
-            device = @on_dev_addr_missing.call(event, self)
+      end
 
-            raise ArgumentError.new "on_dev_addr_missing must return nil or an instance of Device" unless device.nil? or device.kind_of? Device
+    end
+
+    def process_event_join(event)
+
+      device = dm.lookup_by_eui(event.frame.dev_eui)
+
+      if device.nil? and @on_eui_missing
+        device = @on_eui_missing.call(event, self)
+      end
+
+      if device
+
+        device.process_join_request(event) do |response|
+
+          case response
+          when GatewayDownEvent
+
+            gw.send_downstream(response)
+
+          when ActivationEvent, DeviceUpdateEvent
+
+            @on_event.call(response, self) if @on_event
 
           end
 
-          if device
+        end
 
-            device.process_data_up(event) do |response|
+      end
+    end
 
-              case response
-              when GatewayDownEvent
+    def process_event_data(event)
 
-                gw.send_downstream(response)
+      device = dm.lookup_by_addr(event.frame.dev_addr)
 
-              when DataUpEvent, DeviceUpdateEvent
+      if device.nil? and @on_dev_addr_missing
 
-                @on_event.call(response, self) if @on_event
+        device = @on_dev_addr_missing.call(event, self)
 
-              end
+        raise ArgumentError.new "on_dev_addr_missing must return nil or an instance of Device" unless device.nil? or device.kind_of? Device
 
-            end
+      end
+
+      if device
+
+        device.process_data_up(event) do |response|
+
+          case response
+          when GatewayDownEvent
+
+            gw.send_downstream(response)
+
+          when DataUpEvent, DeviceUpdateEvent
+
+            @on_event.call(response, self) if @on_event
 
           end
 
